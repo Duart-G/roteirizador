@@ -848,10 +848,13 @@ tr.next td.ord { color: var(--warn); }
       }
       if (!r) continue;
       const d = hav(st, r) * 1000, lim = r.house ? 300 : 800;
+      // mais de 5 km do pino: o mapa achou outra terra com o mesmo nome de rua, não serve para conferir
+      if (d > 5000) continue;
       if (d > lim && !S.ignore[x.pk]) S.diffs.push({ st, x, r, d });
     }
     if (S.verifyToken !== token) return;
-    $("verifyHint").textContent = `Conferi ${S.order.length} moradas no mapa: ${S.diffs.length} com o pino longe da morada (mais de 300 m, ou 800 m quando o mapa só conhece a rua).`;
+    S.seeDiff = null;
+    $("verifyHint").textContent = `Conferi ${S.order.length} moradas no mapa: ${S.diffs.length} com o pino longe da morada (mais de 300 m, ou 800 m quando o mapa só conhece a rua). Toque em "Ver no mapa" para ver onde o mapa põe a morada.`;
     renderCheck(); drawMap(true);
   }
   function errorRows() {
@@ -882,7 +885,7 @@ tr.next td.ord { color: var(--warn); }
       <td><div class="actions">${ver(f.x)}<button class="btn small" data-keep="${k}">Manter a da planilha</button></div></td></tr>`).join("") +
       diffs.map((f, k) => `<tr>
       <td><span class="cx">${esc(f.x.id)}</span></td><td>${esc(f.x.addr)}</td>
-      <td>A morada no mapa fica a ${Math.round(f.d).toLocaleString("pt-PT")} m do pino${f.r.house ? "" : " (o mapa só achou a rua)"}. Círculo azul tracejado no mapa = onde o mapa põe a morada.</td>
+      <td>A morada no mapa fica a ${Math.round(f.d).toLocaleString("pt-PT")} m do pino${f.r.house ? "" : " (o mapa só achou a rua)"}. Em "Ver no mapa", o círculo azul tracejado mostra onde o mapa põe a morada.</td>
       <td><div class="actions">${ver(f.x)}${useSvg ? "" : `<button class="btn small" data-see="${k}">Ver no mapa</button>`}<button class="btn small okbtn" data-use="${k}">Usar a do mapa</button><button class="btn small" data-ign="${k}">Pino está certo</button></div></td></tr>`).join("") +
       moved.map((st, k) => `<tr>
       <td>${st.items.map((x) => `<span class="cx">${esc(x.id)}</span>`).join(" ")}</td><td>${esc(st.addr)}</td>
@@ -892,8 +895,8 @@ tr.next td.ord { color: var(--warn); }
       (S.keepOrig.size ? `<tr><td colspan="4" class="hint">${S.keepOrig.size} mantida(s) como na planilha. <button class="btn small" id="undoKeep">Conferir de novo</button></td></tr>` : "");
     $("checkBody").querySelectorAll("[data-keep]").forEach((b) => (b.onclick = () => { S.keepOrig.add(list[+b.dataset.keep].x.i); run(); }));
     $("checkBody").querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.use]; movePin(f.st, f.r.lat, f.r.lng); }));
-    $("checkBody").querySelectorAll("[data-ign]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.ign]; S.ignore[f.x.pk] = 1; store.set("rota.ignore", S.ignore); S.diffs = diffs.filter((y) => y !== f); renderCheck(); drawMap(true); }));
-    $("checkBody").querySelectorAll("[data-see]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.see]; document.querySelector(".mapbox").scrollIntoView({ behavior: "smooth", block: "center" }); lmap.fitBounds(L.latLngBounds([[f.st.lat, f.st.lng], [f.r.lat, f.r.lng]]), { padding: [60, 60], maxZoom: 18 }); }));
+    $("checkBody").querySelectorAll("[data-ign]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.ign]; if (S.seeDiff === f) S.seeDiff = null; S.ignore[f.x.pk] = 1; store.set("rota.ignore", S.ignore); S.diffs = diffs.filter((y) => y !== f); renderCheck(); drawMap(true); }));
+    $("checkBody").querySelectorAll("[data-see]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.see]; S.seeDiff = f; drawMap(true); document.querySelector(".mapbox").scrollIntoView({ behavior: "smooth", block: "center" }); lmap.fitBounds(L.latLngBounds([[f.st.lat, f.st.lng], [f.r.lat, f.r.lng]]), { padding: [60, 60], maxZoom: 18 }); }));
     $("checkBody").querySelectorAll("[data-unmove]").forEach((b) => (b.onclick = () => { moved[+b.dataset.unmove].items.forEach((x) => delete S.pins[x.pk]); store.set("rota.pins", S.pins); run(); }));
     const u = $("undoKeep"); if (u) u.onclick = () => { S.keepOrig.clear(); run(); };
     const fm = $("forgetMem"); if (fm) fm.onclick = () => { if (fm.dataset.sure) { S.mem = {}; store.set("rota.mem", S.mem); run(); } else { fm.dataset.sure = "1"; fm.textContent = "Confirmar: esquecer todas"; } };
@@ -1220,7 +1223,8 @@ tr.next td.ord { color: var(--warn); }
     const key = line.map((x) => x.join()).join(";");
     if (geomKey !== key) { geomKey = key; routeGeom = null; fetchGeom(line, key); }
     L.polyline(routeGeom || line, { color: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6847", weight: 4, opacity: .8, dashArray: routeGeom ? null : "6 6" }).addTo(layer);
-    (S.diffs || []).forEach((f) => {
+    // só a morada escolhida em "Ver no mapa", para não encher o mapa de linhas
+    (S.seeDiff && (S.diffs || []).includes(S.seeDiff) ? [S.seeDiff] : []).forEach((f) => {
       L.marker([f.r.lat, f.r.lng], { interactive: false, icon: L.divIcon({ className: "", html: '<div class="altpin"></div>', iconSize: [0, 0] }) }).addTo(layer);
       L.polyline([[f.st.lat, f.st.lng], [f.r.lat, f.r.lng]], { color: "#1f4fd1", weight: 2, dashArray: "4 4" }).addTo(layer);
     });
