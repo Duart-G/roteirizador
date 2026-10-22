@@ -1,0 +1,1399 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><meta name="theme-color" content="#0a6847"><link rel="manifest" href="manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"></head><body>
+<title>Roteirizador de Entregas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style> .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-tile-container, .leaflet-pane > svg, .leaflet-pane > canvas, .leaflet-zoom-box, .leaflet-image-layer, .leaflet-layer { position: absolute; left: 0; top: 0; } .leaflet-container { overflow: hidden; } .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-user-drag: none; } .leaflet-tile::selection { background: transparent; } .leaflet-safari .leaflet-tile { image-rendering: -webkit-optimize-contrast; } .leaflet-safari .leaflet-tile-container { width: 1600px; height: 1600px; -webkit-transform-origin: 0 0; } .leaflet-marker-icon, .leaflet-marker-shadow { display: block; } .leaflet-container .leaflet-overlay-pane svg { max-width: none !important; max-height: none !important; } .leaflet-container .leaflet-marker-pane img, .leaflet-container .leaflet-shadow-pane img, .leaflet-container .leaflet-tile-pane img, .leaflet-container img.leaflet-image-layer, .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; width: auto; padding: 0; } .leaflet-container img.leaflet-tile { mix-blend-mode: plus-lighter; } .leaflet-container.leaflet-touch-zoom { -ms-touch-action: pan-x pan-y; touch-action: pan-x pan-y; } .leaflet-container.leaflet-touch-drag { -ms-touch-action: pinch-zoom; touch-action: none; touch-action: pinch-zoom; } .leaflet-container.leaflet-touch-drag.leaflet-touch-zoom { -ms-touch-action: none; touch-action: none; } .leaflet-container { -webkit-tap-highlight-color: transparent; } .leaflet-container a { -webkit-tap-highlight-color: rgba(51, 181, 229, 0.4); } .leaflet-tile { filter: inherit; visibility: hidden; } .leaflet-tile-loaded { visibility: inherit; } .leaflet-zoom-box { width: 0; height: 0; -moz-box-sizing: border-box; box-sizing: border-box; z-index: 800; } .leaflet-overlay-pane svg { -moz-user-select: none; } .leaflet-pane { z-index: 400; } .leaflet-tile-pane { z-index: 200; } .leaflet-overlay-pane { z-index: 400; } .leaflet-shadow-pane { z-index: 500; } .leaflet-marker-pane { z-index: 600; } .leaflet-tooltip-pane { z-index: 650; } .leaflet-popup-pane { z-index: 700; } .leaflet-map-pane canvas { z-index: 100; } .leaflet-map-pane svg { z-index: 200; } .leaflet-vml-shape { width: 1px; height: 1px; } .lvml { behavior: url(#default#VML); display: inline-block; position: absolute; } .leaflet-control { position: relative; z-index: 800; pointer-events: visiblePainted; pointer-events: auto; } .leaflet-top, .leaflet-bottom { position: absolute; z-index: 1000; pointer-events: none; } .leaflet-top { top: 0; } .leaflet-right { right: 0; } .leaflet-bottom { bottom: 0; } .leaflet-left { left: 0; } .leaflet-control { float: left; clear: both; } .leaflet-right .leaflet-control { float: right; } .leaflet-top .leaflet-control { margin-top: 10px; } .leaflet-bottom .leaflet-control { margin-bottom: 10px; } .leaflet-left .leaflet-control { margin-left: 10px; } .leaflet-right .leaflet-control { margin-right: 10px; } .leaflet-fade-anim .leaflet-popup { opacity: 0; -webkit-transition: opacity 0.2s linear; -moz-transition: opacity 0.2s linear; transition: opacity 0.2s linear; } .leaflet-fade-anim .leaflet-map-pane .leaflet-popup { opacity: 1; } .leaflet-zoom-animated { -webkit-transform-origin: 0 0; -ms-transform-origin: 0 0; transform-origin: 0 0; } svg.leaflet-zoom-animated { will-change: transform; } .leaflet-zoom-anim .leaflet-zoom-animated { -webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1); -moz-transition: -moz-transform 0.25s cubic-bezier(0,0,0.25,1); transition: transform 0.25s cubic-bezier(0,0,0.25,1); } .leaflet-zoom-anim .leaflet-tile, .leaflet-pan-anim .leaflet-tile { -webkit-transition: none; -moz-transition: none; transition: none; } .leaflet-zoom-anim .leaflet-zoom-hide { visibility: hidden; } .leaflet-interactive { cursor: pointer; } .leaflet-grab { cursor: -webkit-grab; cursor: -moz-grab; cursor: grab; } .leaflet-crosshair, .leaflet-crosshair .leaflet-interactive { cursor: crosshair; } .leaflet-popup-pane, .leaflet-control { cursor: auto; } .leaflet-dragging .leaflet-grab, .leaflet-dragging .leaflet-grab .leaflet-interactive, .leaflet-dragging .leaflet-marker-draggable { cursor: move; cursor: -webkit-grabbing; cursor: -moz-grabbing; cursor: grabbing; } .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-image-layer, .leaflet-pane > svg path, .leaflet-tile-container { pointer-events: none; } .leaflet-marker-icon.leaflet-interactive, .leaflet-image-layer.leaflet-interactive, .leaflet-pane > svg path.leaflet-interactive, svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainted; pointer-events: auto; } .leaflet-container { background: #ddd; outline-offset: 1px; } .leaflet-container a { color: #0078A8; } .leaflet-zoom-box { border: 2px dotted #38f; background: rgba(255,255,255,0.5); } .leaflet-container { font-family: "Helvetica Neue", Arial, Helvetica, sans-serif; font-size: 12px; font-size: 0.75rem; line-height: 1.5; } .leaflet-bar { box-shadow: 0 1px 5px rgba(0,0,0,0.65); border-radius: 4px; } .leaflet-bar a { background-color: #fff; border-bottom: 1px solid #ccc; width: 26px; height: 26px; line-height: 26px; display: block; text-align: center; text-decoration: none; color: black; } .leaflet-bar a, .leaflet-control-layers-toggle { background-position: 50% 50%; background-repeat: no-repeat; display: block; } .leaflet-bar a:hover, .leaflet-bar a:focus { background-color: #f4f4f4; } .leaflet-bar a:first-child { border-top-left-radius: 4px; border-top-right-radius: 4px; } .leaflet-bar a:last-child { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; border-bottom: none; } .leaflet-bar a.leaflet-disabled { cursor: default; background-color: #f4f4f4; color: #bbb; } .leaflet-touch .leaflet-bar a { width: 30px; height: 30px; line-height: 30px; } .leaflet-touch .leaflet-bar a:first-child { border-top-left-radius: 2px; border-top-right-radius: 2px; } .leaflet-touch .leaflet-bar a:last-child { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; } .leaflet-control-zoom-in, .leaflet-control-zoom-out { font: bold 18px 'Lucida Console', Monaco, monospace; text-indent: 1px; } .leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out { font-size: 22px; } .leaflet-control-layers { box-shadow: 0 1px 5px rgba(0,0,0,0.4); background: #fff; border-radius: 5px; } .leaflet-control-layers-toggle { background-image: url(images/layers.png); width: 36px; height: 36px; } .leaflet-retina .leaflet-control-layers-toggle { background-image: url(images/layers-2x.png); background-size: 26px 26px; } .leaflet-touch .leaflet-control-layers-toggle { width: 44px; height: 44px; } .leaflet-control-layers .leaflet-control-layers-list, .leaflet-control-layers-expanded .leaflet-control-layers-toggle { display: none; } .leaflet-control-layers-expanded .leaflet-control-layers-list { display: block; position: relative; } .leaflet-control-layers-expanded { padding: 6px 10px 6px 6px; color: #333; background: #fff; } .leaflet-control-layers-scrollbar { overflow-y: scroll; overflow-x: hidden; padding-right: 5px; } .leaflet-control-layers-selector { margin-top: 2px; position: relative; top: 1px; } .leaflet-control-layers label { display: block; font-size: 13px; font-size: 1.08333em; } .leaflet-control-layers-separator { height: 0; border-top: 1px solid #ddd; margin: 5px -10px 5px -6px; } .leaflet-default-icon-path { background-image: url(images/marker-icon.png); } .leaflet-container .leaflet-control-attribution { background: #fff; background: rgba(255, 255, 255, 0.8); margin: 0; } .leaflet-control-attribution, .leaflet-control-scale-line { padding: 0 5px; color: #333; line-height: 1.4; } .leaflet-control-attribution a { text-decoration: none; } .leaflet-control-attribution a:hover, .leaflet-control-attribution a:focus { text-decoration: underline; } .leaflet-attribution-flag { display: inline !important; vertical-align: baseline !important; width: 1em; height: 0.6669em; } .leaflet-left .leaflet-control-scale { margin-left: 5px; } .leaflet-bottom .leaflet-control-scale { margin-bottom: 5px; } .leaflet-control-scale-line { border: 2px solid #777; border-top: none; line-height: 1.1; padding: 2px 5px 1px; white-space: nowrap; -moz-box-sizing: border-box; box-sizing: border-box; background: rgba(255, 255, 255, 0.8); text-shadow: 1px 1px #fff; } .leaflet-control-scale-line:not(:first-child) { border-top: 2px solid #777; border-bottom: none; margin-top: -2px; } .leaflet-control-scale-line:not(:first-child):not(:last-child) { border-bottom: 2px solid #777; } .leaflet-touch .leaflet-control-attribution, .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar { box-shadow: none; } .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar { border: 2px solid rgba(0,0,0,0.2); background-clip: padding-box; } .leaflet-popup { position: absolute; text-align: center; margin-bottom: 20px; } .leaflet-popup-content-wrapper { padding: 1px; text-align: left; border-radius: 12px; } .leaflet-popup-content { margin: 13px 24px 13px 20px; line-height: 1.3; font-size: 13px; font-size: 1.08333em; min-height: 1px; } .leaflet-popup-content p { margin: 17px 0; margin: 1.3em 0; } .leaflet-popup-tip-container { width: 40px; height: 20px; position: absolute; left: 50%; margin-top: -1px; margin-left: -20px; overflow: hidden; pointer-events: none; } .leaflet-popup-tip { width: 17px; height: 17px; padding: 1px; margin: -10px auto 0; pointer-events: auto; -webkit-transform: rotate(45deg); -moz-transform: rotate(45deg); -ms-transform: rotate(45deg); transform: rotate(45deg); } .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: white; color: #333; box-shadow: 0 3px 14px rgba(0,0,0,0.4); } .leaflet-container a.leaflet-popup-close-button { position: absolute; top: 0; right: 0; border: none; text-align: center; width: 24px; height: 24px; font: 16px/24px Tahoma, Verdana, sans-serif; color: #757575; text-decoration: none; background: transparent; } .leaflet-container a.leaflet-popup-close-button:hover, .leaflet-container a.leaflet-popup-close-button:focus { color: #585858; } .leaflet-popup-scrolled { overflow: auto; } .leaflet-oldie .leaflet-popup-content-wrapper { -ms-zoom: 1; } .leaflet-oldie .leaflet-popup-tip { width: 24px; margin: 0 auto; -ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)"; filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678); } .leaflet-oldie .leaflet-control-zoom, .leaflet-oldie .leaflet-control-layers, .leaflet-oldie .leaflet-popup-content-wrapper, .leaflet-oldie .leaflet-popup-tip { border: 1px solid #999; } .leaflet-div-icon { background: #fff; border: 1px solid #666; } .leaflet-tooltip { position: absolute; padding: 6px; background-color: #fff; border: 1px solid #fff; border-radius: 3px; color: #222; white-space: nowrap; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.4); } .leaflet-tooltip.leaflet-interactive { cursor: pointer; pointer-events: auto; } .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before, .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { position: absolute; pointer-events: none; border: 6px solid transparent; background: transparent; content: ""; } .leaflet-tooltip-bottom { margin-top: 6px; } .leaflet-tooltip-top { margin-top: -6px; } .leaflet-tooltip-bottom:before, .leaflet-tooltip-top:before { left: 50%; margin-left: -6px; } .leaflet-tooltip-top:before { bottom: 0; margin-bottom: -12px; border-top-color: #fff; } .leaflet-tooltip-bottom:before { top: 0; margin-top: -12px; margin-left: -6px; border-bottom-color: #fff; } .leaflet-tooltip-left { margin-left: -6px; } .leaflet-tooltip-right { margin-left: 6px; } .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { top: 50%; margin-top: -6px; } .leaflet-tooltip-left:before { right: 0; margin-right: -12px; border-left-color: #fff; } .leaflet-tooltip-right:before { left: 0; margin-left: -12px; border-right-color: #fff; } @media print { .leaflet-control { -webkit-print-color-adjust: exact; print-color-adjust: exact; } } </style>
+<style>
+/* Layout: painel de etapas à esquerda, mapa à direita, roteiro ordenado abaixo; empilha no celular. */
+:root {
+  --bg: #f3f4f1;
+  --panel: #ffffff;
+  --ink: #1d2320;
+  --muted: #5d6762;
+  --line: #d9ddd8;
+  --accent: #0a6847;      /* verde placa de rodovia */
+  --accent-ink: #ffffff;
+  --sign: #f2b705;        /* amarelo de sinalização */
+  --sign-ink: #1d2320;
+  --warn: #b5470b;
+  --ok: #1f7a3f;
+  --soft: #e8ece7;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141816; --panel: #1c211f; --ink: #e6ebe7; --muted: #9aa49f; --line: #2f3633;
+    --accent: #2fae7c; --accent-ink: #0c1411; --sign: #f2c230; --sign-ink: #141816;
+    --warn: #f08a4b; --ok: #5cc985; --soft: #252b28; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141816; --panel: #1c211f; --ink: #e6ebe7; --muted: #9aa49f; --line: #2f3633;
+  --accent: #2fae7c; --accent-ink: #0c1411; --sign: #f2c230; --sign-ink: #141816;
+  --warn: #f08a4b; --ok: #5cc985; --soft: #252b28; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 16px; }
+header.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.plate { background: var(--accent); color: var(--accent-ink); font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: .02em; padding: 4px 14px 2px; border-radius: 6px; border: 2px solid var(--accent-ink); outline: 2px solid var(--accent); text-transform: uppercase; }
+header.top p { margin: 0; color: var(--muted); max-width: 60ch; min-width: 0; }
+.banner { background: var(--sign); color: var(--sign-ink); padding: 8px 12px; border-radius: 6px; font-weight: 500; }
+.banner[hidden] { display: none; }
+.grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.step { display: flex; flex-direction: column; gap: 8px; }
+.step h2 { margin: 0; font-family: var(--font-display); font-size: 19px; letter-spacing: .03em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.step h2 .n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--panel); font-size: 14px; }
+.hint { margin: 0; color: var(--muted); font-size: 13px; }
+label.lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+input[type=text], select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--sign); outline-offset: 2px; }
+.drop { border: 2px dashed var(--line); border-radius: 8px; padding: 18px; text-align: center; cursor: pointer; color: var(--muted); transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--soft); }
+.drop strong { color: var(--ink); display: block; font-size: 16px; }
+.drop input { display: none; }
+.maprows { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 6px 10px; align-items: center; font-size: 14px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.radio { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.radio label { display: flex; gap: 8px; align-items: center; }
+.btn { font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 9px 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 16px; padding: 11px 16px; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.sign { background: var(--sign); color: var(--sign-ink); border-color: var(--sign); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.progress { height: 6px; background: var(--soft); border-radius: 3px; overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.log { font-family: var(--font-mono); font-size: 12px; color: var(--muted); min-height: 1.2em; overflow-wrap: anywhere; }
+.mapbox { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-height: 460px; height: 62vh; max-height: 680px; }
+#map, #svgmap { position: absolute; inset: 0; }
+#svgmap svg { width: 100%; height: 100%; display: block; }
+.mapnote { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 500; background: var(--sign); color: var(--sign-ink); font-size: 14px; padding: 10px 12px; border-radius: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.mapnote span { flex: 1 1 260px; min-width: 0; }
+.pin { background: var(--accent); color: var(--accent-ink); border: 2px solid #fff; border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; font: 700 13px/1 var(--font-body); box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.pin.done { background: #8a948f; }
+.pin.fail { background: #c0392b; color: #fff; }
+.pin.moved { outline: 3px dashed #1f4fd1; outline-offset: 2px; }
+.pin.mem { outline: 3px solid #1f7a3f; outline-offset: 2px; }
+.altpin { width: 22px; height: 22px; border-radius: 50%; border: 3px dashed #1f4fd1; background: rgba(31,79,209,.15); transform: translate(-50%, -50%); }
+.movebox { display: flex; flex-direction: column; gap: 6px; font: 14px var(--font-body); }
+.movebox .row { gap: 6px; }
+.pin.next { background: var(--sign); color: var(--sign-ink); }
+.pin.start { background: var(--ink); color: var(--panel); border-radius: 6px; }
+.pinwrap { position: relative; }
+.tags { position: absolute; left: 30px; top: -6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.door, .vdc { white-space: nowrap; border-radius: 4px; padding: 1px 5px; font: 700 12px/1.3 var(--font-body); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.door { background: #fff; color: #1d2320; border: 1px solid #1d2320; max-width: 260px; white-space: normal; }
+.vdc { background: #1f4fd1; color: #fff; border: 1px solid #0f2f8f; }
+.zoomed-out .tags { display: none; }
+.hnum { display: inline-block; color: #1d2320; background: rgba(255,255,255,.9); border: 1px solid #7a847f; border-radius: 3px; padding: 1px 4px; font: 700 12px/1.2 var(--font-body); white-space: nowrap; transform: translate(-50%, -50%); pointer-events: none; }
+.hnum.match { background: #ffd23f; border: 2px solid #1d2320; font-size: 14px; padding: 2px 6px; box-shadow: 0 0 0 3px rgba(255,210,63,.45); }
+.doorok { color: var(--ok); font-weight: 600; }
+.hnhint { background: rgba(255,255,255,.92); color: #1d2320; padding: 3px 8px; border-radius: 4px; font: 12px var(--font-body); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+@media (max-width: 600px) { .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.summary div { background: var(--panel); padding: 10px 14px; }
+.summary b { display: block; font-family: var(--font-display); font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.summary span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.nav { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.nav h3, .list h3 { margin: 0; font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; font-size: 19px; }
+.nextcard { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--soft); border-radius: 6px; padding: 10px 12px; }
+.nextcard .txt { flex: 1 1 220px; min-width: 0; }
+.nextcard .txt b { font-size: 17px; }
+.chunks { display: flex; gap: 8px; flex-wrap: wrap; }
+.list { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.ord { font-family: var(--font-display); font-size: 20px; font-weight: 700; width: 44px; }
+tr.done td { color: var(--muted); }
+tr.done td.addr { text-decoration: line-through; }
+tr.fail td.addr { color: var(--warn); }
+.badge { display: inline-block; font-weight: 700; font-size: 13px; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+.badge.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.badge.fail { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.btn.okbtn { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.failbtn { border-color: var(--warn); color: var(--warn); }
+.failform { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.failform select { width: auto; min-width: 180px; }
+tr.next td.ord { color: var(--warn); }
+.cx { font-family: var(--font-mono); font-size: 13px; background: var(--soft); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.fail { color: var(--warn); }
+.fails { display: flex; flex-direction: column; gap: 8px; }
+.fails .f { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.foot { color: var(--muted); font-size: 12px; }
+/* painel lateral de custos */
+.costbtn { position: fixed; right: env(safe-area-inset-right, 0px); top: 45%; z-index: 1500; writing-mode: vertical-rl; transform: rotate(180deg); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 0 8px 8px 0; padding: 14px 8px; font: 700 15px var(--font-display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 100%); z-index: 2000; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -6px 0 24px rgba(0,0,0,.2); transform: translateX(105%); transition: transform .2s; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.drawer.open { transform: none; }
+.dbody > * { flex-shrink: 0; }
+.drawer header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.drawer header h3 { margin: 0; font-family: var(--font-display); text-transform: uppercase; font-size: 20px; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; font: 600 14px var(--font-body); padding: 10px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.dbody { overflow-y: auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+.frow { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 8px; align-items: center; font-size: 14px; }
+.frow input { text-align: right; font-variant-numeric: tabular-nums; }
+.frow small { display: block; color: var(--muted); font-size: 12px; }
+.sect { font: 600 12px var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
+.calc { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.calc div { display: flex; justify-content: space-between; gap: 8px; padding: 7px 12px; font-size: 14px; border-bottom: 1px solid var(--line); }
+.calc div:last-child { border-bottom: 0; }
+.calc b { font-variant-numeric: tabular-nums; }
+.calc .neg b { color: var(--warn); }
+.calc .total { background: var(--soft); font-size: 17px; }
+.calc .total.pos b { color: var(--ok); }
+.hist table { font-size: 13px; }
+.hist td, .hist th { padding: 6px; }
+.hist td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="plate">Rota de Entregas</div>
+    <p>Envie a planilha, o app localiza cada volume, calcula a ordem mais rápida e abre o percurso no Google Maps ou no Waze.</p>
+  </header>
+  <div class="banner" id="exampleBanner">Exemplo carregado com 11 volumes fictícios em Viana do Castelo, no mesmo formato da sua planilha. Envie o seu .xlsx para trocar pelos seus dados.</div>
+
+  <div class="grid">
+    <section class="panel" aria-label="Etapas">
+      <div class="step">
+        <h2><span class="n">1</span>Planilha</h2>
+        <label class="drop" id="drop" for="file">
+          <strong>Escolher arquivo .xlsx</strong>
+          ou arraste a planilha aqui
+          <input type="file" id="file" accept=".xlsx,.xls,.csv">
+        </label>
+        <div class="row" id="sheetRow" hidden>
+          <label class="lbl" for="sheetSel">Aba</label>
+          <select id="sheetSel"></select>
+        </div>
+        <p class="hint" id="fileInfo"></p>
+      </div>
+
+      <div class="step">
+        <h2><span class="n">2</span>Colunas</h2>
+        <p class="hint">Reconheci as colunas automaticamente. Ajuste se algo estiver errado. Basta ter as coordenadas, o endereço ou o código postal.</p>
+        <div class="maprows" id="mapRows"></div>
+      </div>
+
+      <div class="step">
+        <h2><span class="n">3</span>Início e fim</h2>
+        <label class="lbl" for="startAddr">Partida</label>
+        <div class="radio">
+          <label><input type="radio" name="startMode" id="smAddr" value="addr" checked> Neste endereço</label>
+          <label><input type="radio" name="startMode" id="smGps" value="gps"> Minha localização atual</label>
+          <label><input type="radio" name="startMode" id="smFirst" value="first"> Pela entrega mais conveniente</label>
+        </div>
+        <input type="text" id="startAddr" placeholder="Morada, código postal ou lat,lng">
+        <p class="hint" id="startFound"></p>
+        <label class="lbl" for="endAddr">Fim da rota</label>
+        <div class="radio">
+          <label><input type="radio" name="endMode" id="emAddr" value="addr" checked> Neste endereço</label>
+          <label><input type="radio" name="endMode" id="emBack" value="back"> Voltar ao ponto de partida</label>
+          <label><input type="radio" name="endMode" id="emLast" value="last"> Na última entrega</label>
+        </div>
+        <input type="text" id="endAddr" placeholder="Morada, código postal ou lat,lng">
+        <p class="hint" id="endFound"></p>
+        <p class="hint">Os endereços ficam guardados neste navegador. Se algum não for encontrado, cole as coordenadas do Google Maps (toque e segure no local e copie os números).</p>
+      </div>
+
+      <div class="step">
+        <h2><span class="n">4</span>Calcular</h2>
+        <button class="btn primary" id="runBtn">Calcular melhor rota</button>
+        <div class="progress"><div id="prog"></div></div>
+        <div class="log" id="log"></div>
+        <div class="fails" id="fails"></div>
+      </div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="summary">
+        <div><b id="sStops">0</b><span id="sStopsL">Entregas</span></div>
+        <div><b id="sKm">0</b><span>Km estimados</span></div>
+        <div><b id="sTime">0</b><span>Tempo ao volante</span></div>
+        <div><b id="sDone">0</b><span id="sDoneL">Entregues</span></div>
+      </div>
+      <div class="mapbox">
+        <div id="map"></div>
+        <div id="svgmap" hidden></div>
+        <div class="mapnote" id="mapNote" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="nav" id="navBox" hidden>
+    <h3>Navegação</h3>
+    <p class="banner" id="savings" hidden></p>
+    <div class="nextcard" id="nextCard"></div>
+    <p class="hint">Rota completa no Google Maps, em trechos (o Google aceita até 10 paradas por link). Abra um trecho por vez.</p>
+    <div class="chunks" id="chunks"></div>
+  </section>
+
+  <section class="list" id="checkBox" hidden>
+    <div class="row" style="justify-content:space-between">
+      <h3>Moradas com problema</h3>
+      <button class="btn small" id="errReport">Baixar relatório de erros (Excel)</button>
+    </div>
+    <p class="hint" id="checkHint"></p>
+    <p class="hint" id="verifyHint"></p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Etiqueta</th><th>Morada</th><th>Problema</th><th>Ações</th></tr></thead>
+      <tbody id="checkBody"></tbody>
+    </table></div>
+  </section>
+
+  <section class="list" id="listBox" hidden>
+    <div class="row" style="justify-content:space-between">
+      <h3>Roteiro na ordem</h3>
+      <div class="row">
+        <button class="btn small" id="resetDone">Desmarcar todas</button>
+        <button class="btn small" id="exportBtn">Baixar planilha ordenada</button>
+      </div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Etiqueta</th><th>Destinatário / endereço</th><th>Trecho</th><th>Ações</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+  </section>
+
+  <p class="foot">Localização de endereços: ViaCEP e OpenStreetMap (Nominatim). Tempos de trajeto: OSRM. Mapa: Esri. Nenhuma chave de API é necessária. Quando esses serviços não respondem, o app estima pela distância em linha reta.</p>
+</div>
+
+<button class="costbtn" id="costBtn" aria-controls="drawer" aria-expanded="false">€ Custos e saldo</button>
+<aside class="drawer" id="drawer" aria-label="Custos e saldo do dia">
+  <header><h3>Custos e saldo</h3><button class="btn small" id="closeDrawer">Fechar</button></header>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabDay" aria-selected="true">Hoje</button>
+    <button role="tab" id="tabHist" aria-selected="false">Histórico</button>
+  </div>
+  <div class="dbody" id="paneDay">
+    <div class="sect">Veículo e combustível</div>
+    <div class="frow"><label for="cFuel">Preço do combustível (€/litro)</label><input type="text" inputmode="decimal" id="cFuel"></div>
+    <div class="frow"><label for="cKml">Consumo (km por litro)</label><input type="text" inputmode="decimal" id="cKml"></div>
+    <div class="frow"><label for="cCar">Valor do veículo (€)<small>usado para a depreciação</small></label><input type="text" inputmode="decimal" id="cCar"></div>
+    <div class="frow"><label for="cDep">Depreciação mensal (%)</label><input type="text" inputmode="decimal" id="cDep"></div>
+    <div class="frow"><label for="cDays">Dias de trabalho por mês</label><input type="text" inputmode="decimal" id="cDays"></div>
+    <div class="frow"><label for="cOther">Outros custos do dia (€)<small>portagens, estacionamento…</small></label><input type="text" inputmode="decimal" id="cOther"></div>
+    <div class="sect">Ganhos</div>
+    <div class="frow"><label for="cPay">Valor pago por entrega (€)</label><input type="text" inputmode="decimal" id="cPay"></div>
+    <div class="sect">Dia de hoje</div>
+    <div class="frow"><label for="cKm">Km percorridos<small id="cKmHint">da rota calculada</small></label><input type="text" inputmode="decimal" id="cKm"></div>
+    <div class="frow"><label for="cDel">Pacotes entregues<small id="cDelHint"></small></label><input type="text" inputmode="decimal" id="cDel"></div>
+    <div class="calc" id="calcBox"></div>
+    <button class="btn primary" id="saveDay">Guardar o dia no histórico</button>
+    <p class="hint" id="saveMsg"></p>
+  </div>
+  <div class="dbody hist" id="paneHist" hidden>
+    <div class="row" style="justify-content:space-between">
+      <span class="hint" id="histCount"></span>
+      <button class="btn small" id="histExport">Baixar Excel</button>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Data</th><th>Entregues</th><th>Km</th><th>Custos</th><th>Saldo</th><th></th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table></div>
+    <p class="hint">O histórico fica guardado neste navegador. Baixe o Excel de vez em quando para ter uma cópia.</p>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script id="app">
+(function () {
+  "use strict";
+  const PRISTINE = document.documentElement.outerHTML;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- campos e detecção de colunas ----------
+  const FIELDS = [
+    { k: "cep",    label: "Código postal / CEP",   re: /\bcep\b|postal ?code|cod\w*\.? postal|zip/ },
+    { k: "id",     label: "Etiqueta / caixa postal", re: /^label|etiqueta|caixa|cx\.?\s*post|^cx\b|^id$|pedido|^nf|nota/ },
+    { k: "codigo", label: "Código de barras",      re: /barcode|barras|rastreio|tracking|objeto/ },
+    { k: "nome",   label: "Destinatário / loja",   re: /nome|cliente|destinat|razao|recebedor|company|empresa|loja/ },
+    { k: "end",    label: "Endereço / morada",     re: /endere|address|morada|logradouro|^rua|^av/ },
+    { k: "num",    label: "Número",                re: /^n(o|um|umero|º|°)?\.?$|^numero|^nro/ },
+    { k: "bairro", label: "Bairro",                re: /bairro/ },
+    { k: "cidade", label: "Cidade",                re: /cidade|municipio/ },
+    { k: "uf",     label: "UF",                    re: /^uf$|^estado/ },
+    { k: "coord",  label: "Coordenadas (lat,lng)", re: /location|localiza|coord|gps|lat.*lon/ },
+    { k: "lat",    label: "Latitude",              re: /^lat/ },
+    { k: "lng",    label: "Longitude",             re: /^(lng|lon|long)/ },
+    { k: "tipo",   label: "Tipo de morada",        re: /address type|tipo/ },
+    { k: "obs",    label: "Observação",            re: /obs|complemento|referencia/ },
+  ];
+  const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  const S = {
+    wb: null, headers: [], rows: [], map: {}, stops: [], start: null,
+    order: [], legs: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
+  };
+
+  // ---------- exemplo ----------
+  const EXAMPLE = {
+    headers: ["Label", "Barcode", "Company", "Address Claims", "Lastmile Postal Code", "Location - Lastmile (Planned)", "Lastmile Address Type"],
+    rows: [
+      [1, "EX0000000001", "Exemplo A", "Rua de Exemplo 12, 4900-001", "4900-001", "41.6946,-8.8301", "customer"],
+      [2, "EX0000000002", "Exemplo B", "Avenida de Exemplo 40, 4900-002", "4900-002", "41.6987,-8.8215", "customer"],
+      [3, "EX0000000003", "Exemplo C", "Travessa de Exemplo 3, 4900-003", "4900-003", "41.7031,-8.8382", "customer"],
+      [4, "EX0000000004", "Exemplo D", "Rua de Exemplo 87, 4900-004", "4900-004", "41.6872,-8.8174", "pudo"],
+      [5, "EX0000000005", "Exemplo E", "Largo de Exemplo 5, 4935-005", "4935-005", "41.6745,-8.8102", "customer"],
+      [6, "EX0000000006", "Exemplo F", "Rua de Exemplo 210, 4935-006", "4935-006", "41.6612,-8.7988", "customer"],
+      [7, "EX0000000007", "Exemplo G", "Rua de Exemplo 210, 4935-006", "4935-006", "41.6612,-8.7988", "customer"],
+      [8, "EX0000000008", "Exemplo H", "Caminho de Exemplo 9, 4935-008", "4935-008", "41.6489,-8.7801", "customer"],
+      [9, "EX0000000009", "Exemplo I", "Rua de Exemplo 51, 4905-009", "4905-009", "41.7102,-8.8051", "customer"],
+      [10, "EX0000000010", "Exemplo J", "Rua de Exemplo 7, 4905-010", "4905-010", "41.6851,-8.8402", "customer"],
+      [11, "EX0000000011", "Exemplo K", "Avenida de Exemplo 300, 4935-011", "4935-011", "41.6390,-8.7712", "customer"],
+    ],
+    start: { lat: 41.6932, lng: -8.8329, label: "Centro de Viana do Castelo (exemplo)" },
+  };
+
+  // ---------- leitura da planilha ----------
+  function loadTable(headers, rows) {
+    S.headers = headers.map((h, i) => String(h ?? "").trim() || "Coluna " + (i + 1));
+    S.rows = rows.filter((r) => r.some((c) => String(c ?? "").trim() !== ""));
+    S.map = autoMap(S.headers);
+    renderMapRows();
+    $("sStops").textContent = S.rows.length;
+  }
+  function autoMap(headers) {
+    const m = {}; const used = new Set();
+    for (const f of FIELDS) {
+      const i = headers.findIndex((h, idx) => !used.has(idx) && f.re.test(norm(h)));
+      if (i >= 0) { m[f.k] = i; used.add(i); } else m[f.k] = -1;
+    }
+    return m;
+  }
+  function renderMapRows() {
+    const box = $("mapRows"); box.innerHTML = "";
+    for (const f of FIELDS) {
+      const l = document.createElement("label"); l.textContent = f.label; l.htmlFor = "map_" + f.k;
+      const s = document.createElement("select"); s.id = "map_" + f.k;
+      s.innerHTML = '<option value="-1">(não usar)</option>' + S.headers.map((h, i) => `<option value="${i}">${esc(h)}</option>`).join("");
+      s.value = String(S.map[f.k]);
+      s.onchange = () => { S.map[f.k] = +s.value; };
+      box.append(l, s);
+    }
+  }
+  function sheetToTable(ws) {
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    // a linha de cabeçalho é a primeira com 2+ textos
+    let h = aoa.findIndex((r) => r.filter((c) => typeof c === "string" && c.trim()).length >= 2);
+    if (h < 0) h = 0;
+    return { headers: aoa[h] || [], rows: aoa.slice(h + 1) };
+  }
+  function openWorkbook(buf, name) {
+    if (typeof XLSX === "undefined") { log("Não consegui carregar o leitor de planilhas. Verifique a internet e recarregue."); return; }
+    S.wb = XLSX.read(buf, { type: "array" });
+    const sel = $("sheetSel");
+    sel.innerHTML = S.wb.SheetNames.map((n) => `<option>${esc(n)}</option>`).join("");
+    $("sheetRow").hidden = S.wb.SheetNames.length < 2;
+    sel.onchange = () => useSheet(sel.value, name);
+    useSheet(S.wb.SheetNames[0], name);
+  }
+  function useSheet(sheetName, fileName) {
+    const t = sheetToTable(S.wb.Sheets[sheetName]);
+    S.example = false; $("exampleBanner").hidden = true;
+    loadTable(t.headers, t.rows);
+    $("fileInfo").textContent = `${fileName}: ${S.rows.length} entregas, ${S.headers.length} colunas.`;
+    S.order = []; S.fix = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
+    log("Planilha carregada. Confira as colunas e toque em Calcular melhor rota.");
+  }
+  const fileInput = $("file"), drop = $("drop");
+  fileInput.onchange = () => { const f = fileInput.files[0]; if (f) readFile(f); };
+  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+  function readFile(f) {
+    const r = new FileReader();
+    r.onload = () => { try { openWorkbook(new Uint8Array(r.result), f.name); } catch (err) { log("Não consegui ler esse arquivo: " + err.message); } };
+    r.readAsArrayBuffer(f);
+  }
+
+  // ---------- geocodificação ----------
+  const geoCache = store.get("rota.geo", {});
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let lastNominatim = 0;
+  async function getJSON(url) {
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+  async function nominatim(params) {
+    const wait = 1100 - (Date.now() - lastNominatim); if (wait > 0) await sleep(wait);
+    lastNominatim = Date.now();
+    const q = new URLSearchParams({ format: "jsonv2", limit: "1", countrycodes: "br,pt", "accept-language": "pt-BR", ...params });
+    const j = await getJSON("https://nominatim.openstreetmap.org/search?" + q);
+    return j && j[0] ? { lat: +j[0].lat, lng: +j[0].lon, name: j[0].display_name, house: !!(j[0].address && j[0].address.house_number) } : null;
+  }
+  async function viaCep(cep) {
+    const j = await getJSON(`https://viacep.com.br/ws/${cep}/json/`);
+    return j && !j.erro ? j : null;
+  }
+  const num = (v) => { if (typeof v === "number") return v; const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : NaN; };
+  // CEP do Brasil (8 dígitos) ou código postal de Portugal (0000-000)
+  const cepOf = (v) => {
+    const t = String(v ?? "").trim(), pt = t.match(/^(\d{4})-(\d{3})$/);
+    if (pt) return pt[1] + "-" + pt[2];
+    const d = t.replace(/\D/g, ""); return d.length === 8 ? d : d.length === 7 && typeof v === "number" ? "0" + d : "";
+  };
+  const isPT = (c) => /^\d{4}-\d{3}$/.test(c || "");
+  const cellText = (v) => (typeof v === "number" && Number.isInteger(v) ? String(v) : String(v ?? "").trim());
+
+  async function geocode(p) {
+    // p: {end, num, bairro, cidade, uf, cep, free}
+    const key = JSON.stringify(p);
+    if (geoCache[key]) return geoCache[key];
+    let end = p.end, cidade = p.cidade, uf = p.uf, bairro = p.bairro;
+    if (p.cep && !isPT(p.cep) && (!end || !cidade)) {
+      try { const v = await viaCep(p.cep); if (v) { end = end || v.logradouro; cidade = cidade || v.localidade; uf = uf || v.uf; bairro = bairro || v.bairro; } } catch (e) {}
+    }
+    let r = null;
+    const numero = /^\d+/.test(String(p.num || "")) ? String(p.num).match(/^\d+/)[0] : "";
+    if (p.free) {
+      r = await nominatim({ q: p.free });
+      const parts = p.free.split(",").map((x) => x.trim()).filter(Boolean);
+      const pc = p.free.match(/\b(\d{4})-?(\d{3})\b/);
+      const loc = p.free.replace(/\b\d{4}-?\d{3}\b/, "").split(",").pop().trim();
+      if (!r && parts.length > 1) r = await nominatim({ q: parts.slice(1).join(", ") });
+      if (!r && pc) r = await nominatim({ postalcode: pc[1] + "-" + pc[2], country: "Portugal" });
+      if (!r && pc && loc) r = await nominatim({ q: loc + ", Portugal" });
+      if (r) { geoCache[key] = r; store.set("rota.geo", geoCache); }
+      return r;
+    }
+    if (!r && end && cidade) r = await nominatim({ street: (numero ? numero + " " : "") + end, city: cidade, state: uf || "", country: "Brasil" });
+    if (!r && end && cidade) r = await nominatim({ q: [end, numero, bairro, cidade, uf].filter(Boolean).join(", ") });
+    if (!r && end && !cidade) r = await nominatim({ q: [end, bairro, p.cep].filter(Boolean).join(", ") });
+    if (!r && end && cidade && numero) r = await nominatim({ street: end, city: cidade, state: uf || "", country: "Brasil" });
+    if (!r && p.cep) r = await nominatim({ postalcode: fmtCep(p.cep), country: isPT(p.cep) ? "Portugal" : "Brasil" });
+    if (!r && bairro && cidade) r = await nominatim({ q: [bairro, cidade, uf].filter(Boolean).join(", ") });
+    if (r) { r.approx = !end; geoCache[key] = r; store.set("rota.geo", geoCache); }
+    return r;
+  }
+
+  function rowToStop(r, i) {
+    const g = (k) => (S.map[k] >= 0 ? r[S.map[k]] : "");
+    const txt = (k) => cellText(g(k));
+    let lat = num(g("lat")), lng = num(g("lng"));
+    const cm = String(g("coord") ?? "").match(/(-?\d+(?:\.\d+)?)\s*[,; ]\s*(-?\d+(?:\.\d+)?)/);
+    if (cm && !(isFinite(lat) && isFinite(lng))) { lat = +cm[1]; lng = +cm[2]; }
+    const s = {
+      i, raw: r, id: txt("id") || "Linha " + (i + 2), codigo: txt("codigo"), tipo: txt("tipo"), nome: txt("nome"),
+      end: txt("end"), num: txt("num"), bairro: txt("bairro"), cidade: txt("cidade"), uf: txt("uf"), cep: cepOf(g("cep")), obs: txt("obs"),
+      lat: NaN, lng: NaN,
+    };
+    if (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && (lat !== 0 || lng !== 0)) { s.lat = lat; s.lng = lng; }
+    s.sheetLat = s.lat; s.sheetLng = s.lng; s.pk = [s.id, s.codigo, s.cep].join("|");
+    const mv = S.pins[s.pk];
+    if (mv) { s.lat = mv.lat; s.lng = mv.lng; s.moved = true; }
+    else if (s.end) { const me = S.mem[memKey(s)]; if (me) { s.lat = me.lat; s.lng = me.lng; s.fromMem = me; } }
+    const cepTxt = s.cep && fmtCep(s.cep);
+    s.addr = [s.end && (s.end + (s.num ? ", " + s.num : "")), s.bairro, s.cidade && (s.cidade + (s.uf ? " - " + s.uf : "")), cepTxt && !s.end.includes(cepTxt) && cepTxt].filter(Boolean).join(" · ");
+    return s;
+  }
+  // número de porta a partir da morada ("n2", "Nº 198", "Rua X 92", "lote 4", "319 Primeira Avenida")
+  function doorNumber(addr) {
+    const t = String(addr || "").replace(/,?\s*\d{4}-\d{3}.*$/, "").replace(/,?\s*\d{5}-?\d{3}.*$/, "");
+    let m = t.match(/\b(?:n\.?\s*[º°o]?|n[º°]|nº|numero|número|nr\.?)\s*(\d+\s*[a-z]?)\b/i);
+    if (m) return m[1].replace(/\s+/g, "");
+    m = t.match(/\b(?:lote|lt\.?)\s*(\d+[a-z]?)\b/i); if (m) return "lote " + m[1];
+    m = t.match(/(?:^|\s)(\d+[a-z]?)\s*(?:[,/-]|r\/c|$)/i); if (m) return m[1];
+    m = t.match(/^\s*(\d+[a-z]?)\s/i); if (m) return m[1];
+    return "";
+  }
+  // nome da rua: parte antes da primeira vírgula, sem o número da porta
+  function streetOf(addr) {
+    let t = String(addr || "").replace(/,?\s*\d{4}-\d{3}.*$/, "").replace(/,?\s*\d{5}-?\d{3}.*$/, "").split(",")[0];
+    const before = t;
+    t = t.replace(/\s(?:n\.?\s*[º°o]?|n[º°]|nº|numero|número|nr\.?)\s*\d+.*$/i, "").replace(/\s(?:lote|lt\.?)\s*\d+.*$/i, "");
+    if (t === before) {
+      const d = doorNumber(addr);
+      if (d) { const i = t.lastIndexOf(" " + d); if (i > 0) t = t.slice(0, i); else if (t.trim().startsWith(d + " ")) t = t.trim().slice(d.length + 1); }
+    }
+    return t.replace(/\s+/g, " ").trim();
+  }
+  const memKey = (x) => [norm(streetOf(x.end)), norm(doorNumber(x.end)), x.cep || ""].join("|");
+  const hash = (t) => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return "r" + (h >>> 0).toString(36); };
+  const fmtCep = (c) => (isPT(c) ? c : c.slice(0, 5) + "-" + c.slice(5));
+
+  // coordenadas em qualquer formato comum: "41.24, -8.66", "41,24, -8,66", "(41.24, -8.66)",
+  // graus/minutos/segundos (41°14'24.4"N 8°40'11.6"W) ou um link do Google Maps
+  function parseCoords(t) {
+    const s = String(t || "").trim();
+    let lat, lng;
+    const dms = [...s.matchAll(/(\d+(?:[.,]\d+)?)\s*°\s*(?:(\d+(?:[.,]\d+)?)\s*['’′]\s*)?(?:(\d+(?:[.,]\d+)?)\s*(?:["”″]|''))?\s*([NSEWOL])/gi)];
+    if (dms.length >= 2) {
+      const v = (m) => { const x = num(m[1]) + (num(m[2]) || 0) / 60 + (num(m[3]) || 0) / 3600; return /[SWO]/i.test(m[4]) ? -x : x; };
+      const a = dms.find((m) => /[NS]/i.test(m[4])), b = dms.find((m) => !/[NS]/i.test(m[4]));
+      if (a && b) { lat = v(a); lng = v(b); }
+    }
+    if (lat === undefined) {
+      const m = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || s.match(/[@=](-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) ||
+        s.match(/(-?\d{1,3}[.,]\d{3,})\s*[,; ]\s*(-?\d{1,3}[.,]\d{3,})/);
+      if (m) { lat = num(m[1]); lng = num(m[2]); }
+    }
+    if (lat === undefined || !isFinite(lat) || !isFinite(lng)) return null;
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) [lat, lng] = [lng, lat];
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return { lat, lng };
+  }
+  async function resolvePlace(t) {
+    if (!t) return null;
+    const c0 = parseCoords(t);
+    if (c0) return { ...c0, label: t, name: `coordenadas ${c0.lat.toFixed(5)}, ${c0.lng.toFixed(5)}` };
+    try {
+      const c = cepOf(t);
+      const r = c && t.replace(/\D/g, "").length === t.replace(/[\s.-]/g, "").length ? await geocode({ cep: c }) : await geocode({ free: t });
+      return r ? { ...r, label: t } : null;
+    } catch (e) { S.netErr = true; return null; }
+  }
+  async function resolveStart() {
+    const mode = document.querySelector('input[name=startMode]:checked').value;
+    if (mode === "first") return null;
+    if (mode === "gps") {
+      return new Promise((res) => {
+        if (!navigator.geolocation) { res(null); return; }
+        navigator.geolocation.getCurrentPosition((p) => res({ lat: p.coords.latitude, lng: p.coords.longitude, label: "Minha localização" }), () => res(null), { enableHighAccuracy: true, timeout: 15000 });
+      });
+    }
+    return resolvePlace($("startAddr").value.trim());
+  }
+
+  // ---------- matriz de tempos ----------
+  function hav(a, b) {
+    const R = 6371, toR = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(x));
+  }
+  async function buildMatrix(pts) {
+    const n = pts.length;
+    if (n <= 100) {
+      try {
+        const coords = pts.map((p) => p.lng.toFixed(6) + "," + p.lat.toFixed(6)).join(";");
+        const j = await getJSON(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration,distance`);
+        if (j.code === "Ok" && j.durations) {
+          const fill = (M, f) => M.map((row, i) => row.map((v, k) => (v == null ? f(i, k) : v)));
+          return {
+            dur: fill(j.durations, (i, k) => hav(pts[i], pts[k]) * 1.35 / 40 * 3600),
+            dist: fill(j.distances, (i, k) => hav(pts[i], pts[k]) * 1350),
+            source: "osrm",
+          };
+        }
+      } catch (e) {}
+    }
+    // estimativa: distância em linha reta × 1,35; 25 km/h nos primeiros 5 km, 65 km/h no resto (estrada)
+    const dist = pts.map((a) => pts.map((b) => hav(a, b) * 1350));
+    const dur = dist.map((r) => r.map((m) => { const km = m / 1000; return (Math.min(km, 5) / 25 + Math.max(km - 5, 0) / 65) * 3600; }));
+    return { dur, dist, source: "est" };
+  }
+
+  // ---------- otimização (vizinho mais próximo + 2-opt + or-opt) ----------
+  // 0 = partida; fixedEnd = índice do ponto final obrigatório (0 = volta à partida) ou -1
+  function optimize(D, fixedEnd) {
+    const n = D.length;
+    const roundTrip = fixedEnd >= 0;
+    if (n <= 1) return [];
+    const C = D.map((r, i) => r.map((v, k) => (v + D[k][i]) / 2));
+    const left = new Set(); for (let i = 1; i < n; i++) if (i !== fixedEnd) left.add(i);
+    const path = [0]; let cur = 0;
+    while (left.size) {
+      let best = -1, bv = Infinity;
+      for (const k of left) if (C[cur][k] < bv) { bv = C[cur][k]; best = k; }
+      path.push(best); left.delete(best); cur = best;
+    }
+    if (roundTrip) path.push(fixedEnd);
+    const last = path.length - 1;
+    const d = (a, b) => C[path[a]][path[b]];
+    const t0 = Date.now();
+    let improved = true;
+    while (improved && Date.now() - t0 < 4000) {
+      improved = false;
+      // 2-opt: inverte o trecho i..k
+      for (let i = 1; i < last; i++) {
+        for (let k = i + 1; k <= last; k++) {
+          if (roundTrip && k === last) break;
+          const before = d(i - 1, i) + (k < last ? d(k, k + 1) : 0);
+          const after = d(i - 1, k) + (k < last ? d(i, k + 1) : 0);
+          if (after < before - 1e-6) {
+            const seg = path.slice(i, k + 1).reverse(); path.splice(i, seg.length, ...seg); improved = true;
+          }
+        }
+      }
+      // or-opt: move blocos de 1 a 3 paradas para outra posição
+      for (let len = 1; len <= 3; len++) {
+        for (let i = 1; i + len - 1 < last + (roundTrip ? 0 : 1); i++) {
+          const j = i + len - 1;
+          if (j > last || (roundTrip && j >= last)) break;
+          const prev = path[i - 1], nxt = j + 1 <= last ? path[j + 1] : -1;
+          const a = path[i], b = path[j];
+          const removeGain = C[prev][a] + (nxt >= 0 ? C[b][nxt] : 0) - (nxt >= 0 ? C[prev][nxt] : 0);
+          const rest = path.slice(0, i).concat(path.slice(j + 1));
+          const block = path.slice(i, j + 1);
+          let bestPos = -1, bestCost = removeGain - 1e-6, bestRev = false;
+          for (let p = 0; p < rest.length; p++) {
+            if (p === i - 1) continue;
+            if (roundTrip && p === rest.length - 1) continue;
+            const x = rest[p], y = p + 1 < rest.length ? rest[p + 1] : -1;
+            const base = y >= 0 ? C[x][y] : 0;
+            const c1 = C[x][a] + (y >= 0 ? C[b][y] : 0) - base;
+            const c2 = C[x][b] + (y >= 0 ? C[a][y] : 0) - base;
+            if (c1 < bestCost) { bestCost = c1; bestPos = p; bestRev = false; }
+            if (c2 < bestCost) { bestCost = c2; bestPos = p; bestRev = true; }
+          }
+          if (bestPos >= 0) {
+            const blk = bestRev ? block.reverse() : block;
+            rest.splice(bestPos + 1, 0, ...blk);
+            path.splice(0, path.length, ...rest); improved = true;
+          }
+        }
+      }
+    }
+    return path.filter((v, idx) => idx > 0 && v !== 0 && v !== fixedEnd);
+  }
+
+  // ---------- execução ----------
+  function log(t) { $("log").textContent = t; }
+  function prog(f) { $("prog").style.width = Math.round(f * 100) + "%"; }
+
+  $("runBtn").onclick = run;
+  async function run() {
+    const btn = $("runBtn"); btn.disabled = true; $("fails").innerHTML = "";
+    try {
+      if (!S.rows.length) { log("Carregue uma planilha primeiro."); return; }
+      if (S.map.lat < 0 && S.map.coord < 0 && S.map.cep < 0 && S.map.end < 0) { log("Escolha pelo menos a coluna de CEP ou de endereço na etapa 2."); return; }
+      const stops = S.rows.map(rowToStop);
+      const need = stops.filter((s) => !isFinite(s.lat));
+      let k = 0, netFail = 0;
+      for (const s of need) {
+        k++; prog(k / (need.length + 2));
+        log(`Localizando ${k} de ${need.length}: ${s.id} ${s.addr ? "· " + s.addr : ""}`);
+        try {
+          const r = await geocode(S.fix[s.i] ? { free: S.fix[s.i] } : { end: s.end, num: s.num, bairro: s.bairro, cidade: s.cidade, uf: s.uf, cep: s.cep });
+          if (r) { s.lat = r.lat; s.lng = r.lng; s.approx = r.approx; }
+        } catch (e) { netFail++; if (netFail >= 3 && netFail === k) break; }
+      }
+      if (need.length && netFail >= 3 && netFail === k) {
+        log("Os serviços de localização não responderam. Abra o app pelo arquivo baixado (fora do Claude) ou inclua colunas de latitude e longitude na planilha.");
+        prog(0); return;
+      }
+      log("Conferindo as coordenadas com os códigos postais…");
+      await checkPostal(stops);
+      // volumes no mesmo local viram uma única parada
+      const groups = new Map();
+      for (const s of stops.filter((x) => isFinite(x.lat))) {
+        const key = s.lat.toFixed(5) + "," + s.lng.toFixed(5);
+        if (groups.has(key)) groups.get(key).items.push(s); else { s.items = [s]; groups.set(key, s); }
+      }
+      const ok = [...groups.values()];
+      ok.forEach((g) => { if (g.items.length > 1) { g.ids = g.items.map((x) => x.id); } });
+      const nVol = ok.reduce((a, g) => a + g.items.length, 0);
+      const bad = stops.filter((s) => !isFinite(s.lat));
+      renderFails(bad);
+      if (!ok.length) { log("Nenhuma entrega foi localizada. Confira as colunas de CEP e endereço."); prog(0); return; }
+
+      log("Localizando o início e o fim da rota…"); S.netErr = false;
+      let start = await resolveStart();
+      const endMode = document.querySelector('input[name=endMode]:checked').value;
+      const startTxt = $("startAddr").value.trim(), endTxt = $("endAddr").value.trim();
+      let endPt = endMode === "addr" ? await resolvePlace(endTxt) : null;
+      if (S.example && !start && $("smAddr").checked) start = EXAMPLE.start;
+      if (S.example && endMode === "addr" && !endPt) endPt = null;
+      else {
+        const why = (txt, qual) => !txt ? `Escreva o endereço ${qual}.` :
+          S.netErr ? `Não consegui procurar o endereço ${qual} («${txt}»): aqui a pesquisa de moradas não está disponível. Cole as coordenadas no campo, por exemplo 41.4870, -8.7700.` :
+          `Não encontrei o endereço ${qual} («${txt}»). Cole as coordenadas no campo, por exemplo 41.4870, -8.7700.`;
+        if (!start && $("smAddr").checked) { log(why(startTxt, "de partida")); $("startAddr").focus(); prog(0); return; }
+        if (endMode === "addr" && !endPt) { log(why(endTxt, "final")); $("endAddr").focus(); prog(0); return; }
+      }
+      if (!start && $("smGps").checked) { log("Não consegui a sua localização. Escolha outra opção de partida."); prog(0); return; }
+      // ponto a mais de 250 km das entregas: quase sempre falta o sinal de menos ou lat/lng estão trocadas
+      S.fixNotes = [];
+      const cen = { lat: ok.reduce((a, x) => a + x.lat, 0) / ok.length, lng: ok.reduce((a, x) => a + x.lng, 0) / ok.length };
+      const nearOk = (pt, qual) => {
+        if (!pt) return true;
+        const d0 = hav(pt, cen); if (d0 <= 250) return true;
+        const cands = [[pt.lat, -pt.lng], [-pt.lat, pt.lng], [-pt.lat, -pt.lng], [pt.lng, pt.lat], [pt.lng, -pt.lat], [-pt.lng, pt.lat], [-pt.lng, -pt.lat]];
+        for (const [la, lo] of cands) {
+          if (Math.abs(la) <= 90 && hav({ lat: la, lng: lo }, cen) <= 250) {
+            S.fixNotes.push(`O ponto ${qual} (${pt.lat}, ${pt.lng}) ficava a ${Math.round(d0).toLocaleString("pt-BR")} km das entregas. Usei ${la}, ${lo}: provavelmente faltava o sinal de menos.`);
+            pt.lat = la; pt.lng = lo; pt.name = `coordenadas ${la.toFixed(5)}, ${lo.toFixed(5)} (corrigidas)`; return true;
+          }
+        }
+        log(`O ponto ${qual} fica a ${Math.round(d0).toLocaleString("pt-BR")} km das entregas. Confira as coordenadas: em Portugal a longitude é negativa, por exemplo 41.4870, -8.7700.`);
+        return false;
+      };
+      if (!nearOk(start, "de partida") || !nearOk(endPt, "final")) { prog(0); return; }
+      $("startFound").textContent = start && start.name ? "Encontrado: " + start.name : "";
+      $("endFound").textContent = endPt && endPt.name ? "Encontrado: " + endPt.name : "";
+      // sem partida: a rota começa na entrega que deixa o percurso mais curto
+      if (!start) start = { free: true, firstIsStart: true, label: "Primeira parada da rota" };
+      const roundTrip = endMode === "back" && !start.free;
+
+      log("Calculando tempos entre as entregas…"); prog(0.92);
+      // nós da matriz: 0 = partida (ou nó neutro), 1..n = paradas, n+1 = ponto final
+      const real = (start.free ? [] : [start]).concat(ok, endPt ? [endPt] : []);
+      let M = await buildMatrix(real);
+      if (start.free) {
+        const pad = (X) => [new Array(real.length + 1).fill(0)].concat(X.map((r) => [0].concat(r)));
+        M = { dur: pad(M.dur), dist: pad(M.dist), source: M.source };
+      }
+      const fixedEnd = endPt ? ok.length + 1 : roundTrip ? 0 : -1;
+      const orderIdx = optimize(M.dur, fixedEnd);
+      S.order = orderIdx.map((i) => ok[i - 1]);
+      if (start.free) { start.lat = S.order[0].lat; start.lng = S.order[0].lng; }
+      S.start = start; S.stops = ok; S.source = M.source;
+      S.endPt = endPt || (roundTrip ? start : null); S.roundTrip = roundTrip;
+
+      // pernas: tempo e distância até cada entrega, na ordem
+      const full = [0].concat(orderIdx);
+      let tDur = 0, tDist = 0;
+      S.legs = S.order.map((_, i) => {
+        const a = full[i], b = full[i + 1]; tDur += M.dur[a][b]; tDist += M.dist[a][b];
+        return { dur: M.dur[a][b], dist: M.dist[a][b] };
+      });
+      if (fixedEnd >= 0) { const a = full[full.length - 1]; S.endLeg = { dur: M.dur[a][fixedEnd], dist: M.dist[a][fixedEnd] }; tDur += S.endLeg.dur; tDist += S.endLeg.dist; } else S.endLeg = null;
+      S.totDur = tDur; S.totDist = tDist;
+      // comparação com a ordem original (pela etiqueta numérica, ou pela ordem das linhas)
+      const keyOf = (g) => Math.min(...g.items.map((x) => (/^\d+$/.test(x.id) ? +x.id : 1e9 + x.i)));
+      const origFull = [0].concat(ok.map((g, k) => [g, k + 1]).sort((a, b) => keyOf(a[0]) - keyOf(b[0])).map((x) => x[1]));
+      if (fixedEnd >= 0) origFull.push(fixedEnd);
+      let oDur = 0, oDist = 0;
+      for (let i = 1; i < origFull.length; i++) { oDur += M.dur[origFull[i - 1]][origFull[i]]; oDist += M.dist[origFull[i - 1]][origFull[i]]; }
+      S.cmp = { dur: oDur - tDur, dist: oDist - tDist };
+      S.nVol = nVol;
+      S.routeKey = hash(S.order.map((s) => s.id).sort().join("|"));
+      prog(1);
+      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${M.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
+      renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
+    } finally { btn.disabled = false; }
+  }
+
+  // ---------- conferência: coordenada x código postal ----------
+  // A coordenada da planilha é comparada com as outras entregas da mesma zona postal (4 primeiros
+  // dígitos em Portugal, 5 no Brasil). Se estiver longe demais, a parada é corrigida e listada para revisão.
+  const median = (a) => { const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+  const center = (arr) => ({ lat: median(arr.map((x) => x.lat)), lng: median(arr.map((x) => x.lng)) });
+  async function checkPostal(stops) {
+    S.fixed = [];
+    const withC = stops.filter((x) => isFinite(x.lat) && x.cep);
+    if (withC.length < 5) return;
+    const digits = (x) => x.cep.replace(/\D/g, "");
+    const zoneOf = (x) => digits(x).slice(0, isPT(x.cep) ? 4 : 5);
+    const groupBy = (f) => { const m = new Map(); withC.forEach((x) => { const k = f(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return m; };
+    const zones = groupBy(zoneOf), fulls = groupBy(digits);
+    const todo = [];
+    for (const x of withC) {
+      if (S.keepOrig.has(x.i) || x.moved || x.fromMem) continue;
+      const peers = zones.get(zoneOf(x)).filter((o) => o !== x);
+      if (peers.length < 3) continue;
+      const c = center(peers);
+      const lim = Math.max(8, 4 * median(peers.map((o) => hav(o, c))));
+      const fp = fulls.get(digits(x)).filter((o) => o !== x);
+      const cf = fp.length ? center(fp) : null;
+      const fullOk = cf && hav(cf, c) <= lim;
+      const d = hav(x, c);
+      if (d > lim || (fullOk && hav(x, cf) > 3)) todo.push({ x, c, lim, cf: fullOk ? cf : null, d: fullOk ? hav(x, cf) : d });
+    }
+    for (const t of todo) {
+      const x = t.x; let to = null, how = "";
+      if (t.cf) { to = t.cf; how = `a posição das outras entregas do código ${fmtCep(x.cep)}`; }
+      if (!to && x.end) {
+        try {
+          const q = x.end.includes(fmtCep(x.cep)) ? x.end : x.end + ", " + fmtCep(x.cep);
+          const g = await geocode({ free: q });
+          if (g && hav(g, t.c) <= t.lim) { to = g; how = "a morada encontrada no mapa"; }
+        } catch (e) {}
+      }
+      if (!to) { to = t.c; how = `o centro da zona ${zoneOf(x)} (aproximado)`; }
+      x.orig = { lat: x.lat, lng: x.lng }; x.lat = to.lat; x.lng = to.lng; x.fixed = how;
+      S.fixed.push({ x, d: t.d, how });
+    }
+  }
+  // ---------- 2ª fonte: procura a morada no mapa (OpenStreetMap) e compara com o pino ----------
+  async function verifyAddresses() {
+    const token = (S.verifyToken = {}); S.diffs = [];
+    if (!S.order.length) return;
+    let k = 0, net = 0;
+    for (const st of S.order) {
+      if (S.verifyToken !== token) return;
+      k++;
+      const x = st.items[0];
+      if (x.moved || x.fromMem || !x.end) continue;
+      const door = doorOf(x), rua = streetOf(x.end), cp = x.cep ? fmtCep(x.cep) : "";
+      const q = [rua + (door && !/lote/i.test(door) ? " " + door : ""), cp, x.cidade].filter(Boolean).join(", ");
+      const key = "chk|" + q;
+      let r = geoCache[key];
+      if (r === undefined) {
+        $("verifyHint").textContent = `Conferindo as moradas no mapa: ${k} de ${S.order.length}…`;
+        try { r = await nominatim({ q, addressdetails: "1" }); if (!r && cp) r = await nominatim({ q: [rua, cp].join(", "), addressdetails: "1" }); }
+        catch (e) { if (++net >= 3) { $("verifyHint").textContent = "Não foi possível conferir as moradas no mapa agora (só funciona no arquivo aberto no Chrome)."; return; } continue; }
+        geoCache[key] = r || null; store.set("rota.geo", geoCache);
+      }
+      if (!r) continue;
+      const d = hav(st, r) * 1000, lim = r.house ? 300 : 800;
+      if (d > lim && !S.ignore[x.pk]) S.diffs.push({ st, x, r, d });
+    }
+    if (S.verifyToken !== token) return;
+    $("verifyHint").textContent = `Conferi ${S.order.length} moradas no mapa: ${S.diffs.length} com o pino longe da morada (mais de 300 m, ou 800 m quando o mapa só conhece a rua).`;
+    renderCheck(); drawMap(true);
+  }
+  function errorRows() {
+    const rows = [];
+    const add = (tipo, x, usada, d, extra) => rows.push({ tipo, x, usada, d, extra });
+    (S.fixed || []).forEach((f) => add("Coordenada fora da zona do código postal", f.x, { lat: f.x.lat, lng: f.x.lng }, f.d * 1000, "Corrigida com " + f.how));
+    (S.diffs || []).forEach((f) => add(`Morada no mapa a ${Math.round(f.d)} m do pino`, f.x, f.r, f.d, f.r.house ? "Mapa encontrou a porta" : "Mapa só encontrou a rua"));
+    S.order.forEach((st) => st.items.forEach((x) => {
+      if (x.moved) add("Pino movido à mão", x, { lat: x.lat, lng: x.lng }, hav({ lat: x.sheetLat, lng: x.sheetLng }, x) * 1000, "");
+      else if (x.fromMem && isFinite(x.sheetLat) && hav({ lat: x.sheetLat, lng: x.sheetLng }, x) * 1000 > 100) add("Planilha difere da posição memorizada", x, { lat: x.lat, lng: x.lng }, hav({ lat: x.sheetLat, lng: x.sheetLng }, x) * 1000, "Memorizada por " + x.fromMem.fonte + " em " + new Date(x.fromMem.t).toLocaleDateString("pt-PT"));
+      const t = stOf(st); if (t && t.st === "fail" && /morada/i.test(t.motivo)) add("Não entregue: " + t.motivo, x, null, null, "");
+    }));
+    return rows;
+  }
+  function renderCheck() {
+    const box = $("checkBox"), list = S.fixed || [], diffs = S.diffs || [];
+    const moved = S.order.filter((st) => st.items.some((x) => x.moved));
+    const errs = errorRows();
+    box.hidden = !S.order.length || (!errs.length && !S.keepOrig.size && !$("verifyHint").textContent);
+    $("checkHint").textContent = errs.length
+      ? `${errs.length} problema(s) de morada nesta rota. Confira antes de sair e baixe o relatório para enviar à empresa.`
+      : "Nenhum problema de morada encontrado até agora.";
+    const ver = (x) => `<a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.addr)}">Ver morada</a>`;
+    $("checkBody").innerHTML =
+      list.map((f, k) => `<tr>
+      <td><span class="cx">${esc(f.x.id)}</span></td><td>${esc(f.x.addr)}</td>
+      <td>Coordenada a ${fmtKm(f.d * 1000)} km da zona do código postal. Usei ${esc(f.how)}.</td>
+      <td><div class="actions">${ver(f.x)}<button class="btn small" data-keep="${k}">Manter a da planilha</button></div></td></tr>`).join("") +
+      diffs.map((f, k) => `<tr>
+      <td><span class="cx">${esc(f.x.id)}</span></td><td>${esc(f.x.addr)}</td>
+      <td>A morada no mapa fica a ${Math.round(f.d).toLocaleString("pt-PT")} m do pino${f.r.house ? "" : " (o mapa só achou a rua)"}. Círculo azul tracejado no mapa = onde o mapa põe a morada.</td>
+      <td><div class="actions">${ver(f.x)}${useSvg ? "" : `<button class="btn small" data-see="${k}">Ver no mapa</button>`}<button class="btn small okbtn" data-use="${k}">Usar a do mapa</button><button class="btn small" data-ign="${k}">Pino está certo</button></div></td></tr>`).join("") +
+      moved.map((st, k) => `<tr>
+      <td>${st.items.map((x) => `<span class="cx">${esc(x.id)}</span>`).join(" ")}</td><td>${esc(st.addr)}</td>
+      <td>Pino movido à mão (${Math.round(hav({ lat: st.items[0].sheetLat, lng: st.items[0].sheetLng }, st) * 1000).toLocaleString("pt-PT")} m da planilha).</td>
+      <td><div class="actions"><button class="btn small" data-unmove="${k}">Voltar à planilha</button></div></td></tr>`).join("") +
+      (Object.keys(S.mem).length ? `<tr><td colspan="4" class="hint">${Object.keys(S.mem).length} morada(s) memorizadas de entregas anteriores; ${S.order.filter((st) => st.items.some((x) => x.fromMem)).length} usadas nesta rota (contorno verde no mapa). <button class="btn small" id="forgetMem">Esquecer todas</button></td></tr>` : "") +
+      (S.keepOrig.size ? `<tr><td colspan="4" class="hint">${S.keepOrig.size} mantida(s) como na planilha. <button class="btn small" id="undoKeep">Conferir de novo</button></td></tr>` : "");
+    $("checkBody").querySelectorAll("[data-keep]").forEach((b) => (b.onclick = () => { S.keepOrig.add(list[+b.dataset.keep].x.i); run(); }));
+    $("checkBody").querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.use]; movePin(f.st, f.r.lat, f.r.lng); }));
+    $("checkBody").querySelectorAll("[data-ign]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.ign]; S.ignore[f.x.pk] = 1; store.set("rota.ignore", S.ignore); S.diffs = diffs.filter((y) => y !== f); renderCheck(); drawMap(true); }));
+    $("checkBody").querySelectorAll("[data-see]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.see]; document.querySelector(".mapbox").scrollIntoView({ behavior: "smooth", block: "center" }); lmap.fitBounds(L.latLngBounds([[f.st.lat, f.st.lng], [f.r.lat, f.r.lng]]), { padding: [60, 60], maxZoom: 18 }); }));
+    $("checkBody").querySelectorAll("[data-unmove]").forEach((b) => (b.onclick = () => { moved[+b.dataset.unmove].items.forEach((x) => delete S.pins[x.pk]); store.set("rota.pins", S.pins); run(); }));
+    const u = $("undoKeep"); if (u) u.onclick = () => { S.keepOrig.clear(); run(); };
+    const fm = $("forgetMem"); if (fm) fm.onclick = () => { if (fm.dataset.sure) { S.mem = {}; store.set("rota.mem", S.mem); run(); } else { fm.dataset.sure = "1"; fm.textContent = "Confirmar: esquecer todas"; } };
+  }
+  // mover o pino (arrastado ou "usar a do mapa") e recalcular a rota
+  function movePin(st, lat, lng) {
+    st.items.forEach((x) => { S.pins[x.pk] = { lat, lng, t: Date.now() }; remember(x, lat, lng, "pino movido"); });
+    store.set("rota.pins", S.pins);
+    log("Pino movido. Recalculando a rota…");
+    run();
+  }
+  $("errReport").onclick = async () => {
+    if (typeof XLSX === "undefined") return;
+    const rows = errorRows();
+    const f6 = (v) => (v == null || !isFinite(v) ? "" : +v.toFixed(6));
+    const head = ["Tipo", "Etiqueta (Label)", "Código de barras", "Destinatário", "Morada", "Código postal", "Lat planilha", "Lng planilha", "Lat correta/sugerida", "Lng correta/sugerida", "Distância (m)", "Observação", "Data"];
+    const data = rows.map((r) => [r.tipo, r.x.id, r.x.codigo, r.x.nome, r.x.end, r.x.cep ? fmtCep(r.x.cep) : "", f6(r.x.sheetLat), f6(r.x.sheetLng), r.usada ? f6(r.usada.lat) : "", r.usada ? f6(r.usada.lng) : "", r.d == null ? "" : Math.round(r.d), r.extra, new Date().toLocaleDateString("pt-PT")]);
+    const ws = XLSX.utils.aoa_to_sheet([head].concat(data.length ? data : [["Nenhum problema encontrado"]]));
+    ws["!cols"] = head.map((h, i) => ({ wch: i === 0 || i === 4 ? 40 : 16 }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Erros de morada");
+    const name = `relatorio-erros-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    try {
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+      if (dl) { await dl.save({ filename: name, data: new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) }); return; }
+    } catch (e) { if (e && e.code) return; }
+    XLSX.writeFile(wb, name);
+  };
+
+  function renderFails(bad) {
+    const box = $("fails"); box.innerHTML = "";
+    if (!bad.length) return;
+    const h = document.createElement("p"); h.className = "hint fail";
+    h.textContent = `${bad.length} entrega(s) não foram localizadas. Corrija o endereço e calcule de novo:`;
+    box.append(h);
+    for (const s of bad) {
+      const d = document.createElement("div"); d.className = "f";
+      const inp = document.createElement("input"); inp.type = "text"; inp.id = "fix_" + s.i;
+      inp.value = [s.end, s.num, s.bairro, s.cidade, s.uf, s.cep && fmtCep(s.cep)].filter(Boolean).join(", ");
+      inp.setAttribute("aria-label", "Endereço de " + s.id);
+      const b = document.createElement("button"); b.className = "btn small"; b.textContent = "Usar";
+      b.onclick = () => { S.fix[s.i] = inp.value.trim(); b.textContent = "Ok"; log("Endereço anotado. Toque em Calcular melhor rota de novo."); };
+      d.append(inp, b); box.append(d);
+    }
+  }
+
+  // ---------- resultado ----------
+  const fmtMin = (s) => { const m = Math.round(s / 60); return m < 60 ? m + " min" : Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0"); };
+  const fmtKm = (m) => (m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const ll = (p) => p.lat.toFixed(6) + "," + p.lng.toFixed(6);
+  const wazeUrl = (p) => `https://waze.com/ul?ll=${ll(p)}&navigate=yes`;
+  const streetView = (p) => `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${ll(p)}`;
+  const gmapsOne = (p) => `https://www.google.com/maps/dir/?api=1&destination=${ll(p)}&travelmode=driving`;
+  const doneKey = (s) => S.routeKey + "#" + s.id + "#" + s.i;
+
+  function renderResult() {
+    const has = S.order.length > 0;
+    $("navBox").hidden = !has; $("listBox").hidden = !has;
+    $("sStops").textContent = has ? S.order.length : S.rows.length;
+    $("sStopsL").textContent = has && S.nVol !== S.order.length ? `Paradas · ${S.nVol} volumes` : "Entregas";
+    $("savings").hidden = !has || !S.cmp || S.cmp.dur < 60;
+    if (has && S.cmp) $("savings").textContent = `Comparado com a ordem da planilha, esta rota economiza cerca de ${fmtMin(S.cmp.dur)} e ${fmtKm(S.cmp.dist)} km.`;
+    $("sKm").textContent = has ? fmtKm(S.totDist) : "0";
+    $("sTime").textContent = has ? fmtMin(S.totDur) : "0";
+    renderCheck();
+    if (typeof updateCost === "function" && $("calcBox")) try { updateCost(); } catch (e) {}
+    if (!has) { $("sDone").textContent = "0"; return; }
+    const okN = S.order.filter((s) => stOf(s)?.st === "ok").length, failN = S.order.filter((s) => stOf(s)?.st === "fail").length;
+    $("sDone").textContent = okN + "/" + S.order.length;
+    $("sDoneL").textContent = failN ? `Entregues · ${failN} não entregue(s)` : "Entregues";
+    const nextIdx = S.order.findIndex((s) => !S.done[doneKey(s)]);
+
+    // próxima parada
+    const nc = $("nextCard");
+    if (nextIdx < 0) {
+      nc.innerHTML = `<div class="txt"><b>Todas as paradas foram confirmadas.</b>`
+        + `<br><span class="hint">${S.order.filter((x) => stOf(x)?.st === "ok").length} entregues, ${S.order.filter((x) => stOf(x)?.st === "fail").length} não entregues.</span>`
+        + `${S.endPt ? "<br>Siga para o ponto final." : ""}</div>` +
+        (S.endPt ? `<a class="btn sign" target="_blank" rel="noopener" href="${wazeUrl(S.endPt)}">Waze até o fim</a><a class="btn" target="_blank" rel="noopener" href="${gmapsOne(S.endPt)}">Google Maps</a>` : "");
+    } else {
+      const s = S.order[nextIdx];
+      nc.innerHTML = `<div class="txt"><span class="hint">Próxima parada · ${nextIdx + 1} de ${S.order.length}</span><br><b>${esc(s.items.map((x) => x.id).join(", "))}</b> ${esc(s.nome)}${s.items.length > 1 ? " · " + s.items.length + " volumes" : ""}<br><span class="hint">${esc(s.addr)}</span></div>
+        <a class="btn sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Abrir no Waze</a>
+        <a class="btn" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a>
+        <span id="nextActs" class="row"><button class="btn okbtn" id="markNext">✓ Entregue</button><button class="btn failbtn" id="failNext">✗ Não entregue</button></span>`;
+      $("markNext").onclick = () => setStatus(s, "ok");
+      $("failNext").onclick = () => askFail(s, $("nextActs"));
+    }
+
+    // trechos do Google Maps (origem + 9 paradas intermediárias + destino)
+    const pts = [S.start.firstIsStart ? null : S.start].concat(S.order).filter(Boolean);
+    if (S.endPt) pts.push(S.endPt);
+    const chunks = []; const step = 10;
+    for (let i = 0; i < pts.length - 1; i += step) chunks.push(pts.slice(i, Math.min(i + step + 1, pts.length)));
+    const off = S.start.firstIsStart ? 1 : 0;
+    $("chunks").innerHTML = chunks.map((c, ci) => {
+      const o = c[0], d = c[c.length - 1], w = c.slice(1, -1);
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${ll(o)}&destination=${ll(d)}${w.length ? "&waypoints=" + encodeURIComponent(w.map(ll).join("|")) : ""}&travelmode=driving`;
+      const nums = [];
+      c.forEach((_, j) => { const pj = ci * step + j; if (j === 0 && !(ci === 0 && off)) return; const n = pj + off; if (n >= 1 && n <= S.order.length) nums.push(n); });
+      const a = Math.min(...nums), b = Math.max(...nums);
+      return `<a class="btn${ci === 0 ? " primary" : ""}" target="_blank" rel="noopener" href="${url}">Trecho ${ci + 1}: ${nums.length ? (a === b ? "entrega " + a : "entregas " + a + " a " + b) : ""}${S.endPt && ci === chunks.length - 1 ? (S.roundTrip ? " e volta" : " e fim") : ""}</a>`;
+    }).join("");
+
+    // tabela
+    $("tbody").innerHTML = S.order.map((s, i) => {
+      const leg = S.legs[i] || { dur: 0, dist: 0 };
+      const stt = stOf(s);
+      return `<tr class="${stt ? (stt.st === "ok" ? "done" : "fail") : ""}${i === nextIdx ? " next" : ""}">
+        <td class="ord">${i + 1}</td>
+        <td>${s.items.map((x) => `<span class="cx" title="${esc(x.codigo)}">${esc(x.id)}</span>`).join(" ")}${s.items.length > 1 ? `<br><span class="hint">${s.items.length} volumes</span>` : ""}</td>
+        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${/pudo/i.test(s.tipo) ? ' <span class="hint fail">(ponto de recolha)</span>' : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
+        <td class="num">${i === 0 && S.start.firstIsStart ? "início" : "+" + fmtMin(leg.dur) + "<br>" + fmtKm(leg.dist) + " km"}</td>
+        <td><div class="actions">
+          <a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a>
+          <a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Maps</a>
+          ${useSvg ? "" : `<button class="btn small" data-zoom="${i}">Ver porta</button>`}
+          <a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a>
+          <span class="row" data-acts="${i}">${stt ? `<button class="btn small" data-undo="${i}">Desfazer</button>` : `<button class="btn small okbtn" data-ok="${i}">✓ Entregue</button><button class="btn small failbtn" data-fail="${i}">✗ Não entregue</button>`}</span>
+        </div></td></tr>`;
+    }).join("");
+    $("tbody").querySelectorAll("[data-ok]").forEach((b) => (b.onclick = () => setStatus(S.order[+b.dataset.ok], "ok")));
+    $("tbody").querySelectorAll("[data-undo]").forEach((b) => (b.onclick = () => setStatus(S.order[+b.dataset.undo], null)));
+    $("tbody").querySelectorAll("[data-fail]").forEach((b) => (b.onclick = () => askFail(S.order[+b.dataset.fail], b.parentNode)));
+    $("tbody").querySelectorAll("[data-zoom]").forEach((b) => (b.onclick = () => {
+      const st = S.order[+b.dataset.zoom];
+      document.querySelector(".mapbox").scrollIntoView({ behavior: "smooth", block: "center" });
+      lmap.setView([st.lat, st.lng], 18);
+    }));
+  }
+  // estado de cada parada: entregue (ok) ou não entregue (fail, com motivo)
+  const MOTIVOS = ["Cliente ausente", "Morada não encontrada", "Recusado pelo cliente", "Estabelecimento fechado", "Pacote danificado", "Outro"];
+  const stOf = (s) => { const v = S.done[doneKey(s)]; return !v ? null : typeof v === "number" ? { st: "ok", t: v } : v; };
+  function remember(x, lat, lng, fonte) {
+    if (!x.end) return;
+    S.mem[memKey(x)] = { lat, lng, fonte, t: Date.now(), addr: x.end };
+    store.set("rota.mem", S.mem);
+  }
+  // ao confirmar a entrega: guarda o GPS do telemóvel (se estiver a menos de 500 m do pino) ou o pino corrigido
+  function rememberDelivery(st) {
+    st.items.forEach((x) => { if (x.moved || x.fixed) remember(x, st.lat, st.lng, "pino corrigido"); });
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((p) => {
+      const g = { lat: p.coords.latitude, lng: p.coords.longitude };
+      if (hav(g, st) * 1000 <= 500 && p.coords.accuracy <= 100) { st.items.forEach((x) => remember(x, g.lat, g.lng, "GPS na entrega")); renderCheck(); }
+    }, () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  }
+  function setStatus(s, st, motivo) {
+    if (st === "ok") rememberDelivery(s);
+    const k = doneKey(s);
+    if (!st) delete S.done[k]; else S.done[k] = { st, t: Date.now(), motivo: motivo || "" };
+    store.set("rota.done", S.done); renderResult(); drawMap(true);
+  }
+  function askFail(s, box) {
+    box.innerHTML = `<span class="failform"><select aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select>
+      <button class="btn small failbtn">Confirmar não entregue</button><button class="btn small">Cancelar</button></span>`;
+    const [sel, ok, cancel] = box.querySelectorAll("select, button");
+    ok.onclick = () => setStatus(s, "fail", sel.value);
+    cancel.onclick = () => renderResult();
+  }
+  const statusBadge = (s) => { const t = stOf(s); return !t ? "" : t.st === "ok" ? '<span class="badge ok">✓ Entregue</span>' : `<span class="badge fail">✗ Não entregue${t.motivo ? ": " + esc(t.motivo) : ""}</span>`; };
+  $("resetDone").onclick = () => { S.order.forEach((s) => delete S.done[doneKey(s)]); store.set("rota.done", S.done); renderResult(); drawMap(true); };
+  $("resetDone").textContent = "Limpar confirmações";
+
+  // ---------- exportar ----------
+  $("exportBtn").onclick = async () => {
+    if (typeof XLSX === "undefined") return;
+    const head = ["Parada"].concat(S.headers, ["Latitude usada", "Longitude usada", "Posição corrigida", "Estado", "Motivo", "Waze", "Google Maps"]);
+    const data = S.order.flatMap((s, i) => s.items.map((x) => [i + 1].concat(S.headers.map((_, c) => x.raw[c] ?? ""), [s.lat, s.lng, x.fixed ? "sim: " + x.fixed : "", stOf(s) ? (stOf(s).st === "ok" ? "Entregue" : "Não entregue") : "", stOf(s)?.motivo || "", wazeUrl(s), gmapsOne(s)])));
+    const ws = XLSX.utils.aoa_to_sheet([head].concat(data));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Rota");
+    const name = "rota-ordenada.xlsx";
+    try {
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+      if (dl) {
+        const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+        await dl.save({ filename: name, data: new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) });
+        return;
+      }
+    } catch (e) { if (e && e.code) { log("Download não concluído."); return; } }
+    XLSX.writeFile(wb, name);
+  };
+
+  // ---------- mapa ----------
+  let lmap = null, layer = null, tilesOk = false, tilesFailed = false, useSvg = typeof L === "undefined";
+  function initMap() {
+    if (useSvg) { showSvg(); return; }
+    lmap = L.map("map", { zoomControl: true, attributionControl: true }).setView([41.6, -8.7], 9);
+    // mapas que funcionam com o app aberto como arquivo local, sem chave
+    // (OpenStreetMap responde 403 e CARTO pede chave nesse caso, por isso não são usados)
+    const esri = (svc, attr) => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, attribution: attr });
+    const bases = {
+      "Ruas": esri("World_Street_Map", "© Esri, HERE, Garmin, OpenStreetMap"),
+      "Satélite": esri("World_Imagery", "© Esri, Maxar, Earthstar Geographics"),
+      "Relevo": esri("World_Topo_Map", "© Esri, HERE, Garmin, OpenStreetMap"),
+    };
+    const saved = store.get("rota.mapa", "Ruas");
+    const first = bases[saved] || bases["Ruas"];
+    first.addTo(lmap);
+    L.control.layers(bases, null, { position: "topright", collapsed: false }).addTo(lmap);
+    lmap.on("baselayerchange", (e) => store.set("rota.mapa", e.name));
+    Object.values(bases).forEach((tl) => {
+      tl.on("tileload", () => { tilesOk = true; });
+      tl.on("tileerror", () => { if (!tilesOk && !tilesFailed) { tilesFailed = true; useSvg = true; showSvg(); drawMap(); } });
+    });
+    layer = L.layerGroup().addTo(lmap);
+    hnLayer = L.layerGroup().addTo(lmap);
+    const hint = L.control({ position: "bottomleft" });
+    hint.onAdd = () => { const d = L.DomUtil.create("div", "hnhint"); d.id = "hnHint"; return d; };
+    hint.addTo(lmap);
+    const onZoom = () => {
+      const z = lmap.getZoom();
+      lmap.getContainer().classList.toggle("zoomed-out", z < 14);
+      if (z >= 16) loadHouseNumbers(); else { hnLayer.clearLayers(); $("hnHint").textContent = "Aproxime o mapa, ou toque em \"Ver porta\" na lista, para ver os números das casas"; }
+    };
+    lmap.on("zoomend moveend", () => { clearTimeout(hnTimer); hnTimer = setTimeout(onZoom, 300); });
+    onZoom();
+  }
+  function showSvg() {
+    $("map").hidden = true; $("svgmap").hidden = false; $("mapNote").hidden = false;
+    $("mapNote").innerHTML = '<span>Aqui dentro do Claude o mapa não mostra as ruas, por isso a rota aparece em linha reta. Baixe o app completo e abra no Chrome para ver o percurso pelas ruas e os tempos reais.</span><button class="btn small" id="getApp">Baixar app completo</button>';
+    $("getApp").onclick = downloadApp;
+  }
+  // cópia limpa da página (sem scripts do visualizador) para abrir fora do Claude
+  async function downloadApp() {
+    const doc = new DOMParser().parseFromString(PRISTINE, "text/html");
+    doc.querySelectorAll("script").forEach((el) => { if (el.id !== "app" && !/^https:\/\/cdnjs\.cloudflare\.com\//.test(el.getAttribute("src") || "")) el.remove(); });
+    doc.querySelectorAll("meta[http-equiv]").forEach((el) => el.remove());
+    const html = "<!doctype html>\n" + doc.documentElement.outerHTML;
+    try {
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+      if (dl) { await dl.save({ filename: "roteirizador.html", data: new Blob([html], { type: "text/html" }) }); return; }
+    } catch (e) { if (e && e.code) return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([html], { type: "text/html" })); a.download = "roteirizador.html"; a.click();
+  }
+  function clearMap() { if (layer) layer.clearLayers(); $("svgmap").innerHTML = ""; }
+  function seqPoints() {
+    const pts = [];
+    if (!S.start.firstIsStart) pts.push({ p: S.start, kind: "start", label: "P" });
+    S.order.forEach((s, i) => { const t = stOf(s); pts.push({ p: s, kind: !t ? "stop" : t.st === "ok" ? "done" : "fail", label: String(i + 1), s }); });
+    const ni = pts.findIndex((x) => x.kind === "stop"); if (ni >= 0) pts[ni].kind = "next";
+    if (S.endPt && !S.roundTrip) pts.push({ p: S.endPt, kind: "start", label: "F" });
+    return pts;
+  }
+  let routeGeom = null, geomKey = "";
+  let hnLayer = null, hnTimer = 0;
+  const hnAll = new Map(), hnAreas = new Set();
+  const normDoor = (t) => String(t || "").toLowerCase().replace(/\s+/g, "");
+  const doorOf = (x) => (S.map.num >= 0 && x.num) || doorNumber(x.end);
+  async function overpass(query) {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const j = await res.json();
+    j.elements.forEach((el) => {
+      const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;
+      if (lat == null) return;
+      const n = el.tags["addr:housenumber"];
+      hnAll.set(lat.toFixed(6) + "," + lng.toFixed(6) + "," + n, { lat, lng, n, rua: el.tags["addr:street"] || "" });
+    });
+  }
+  // números das casas à volta de cada entrega (OpenStreetMap), carregados logo após calcular a rota
+  async function loadStopNumbers() {
+    if (useSvg || !S.order.length) return;
+    $("hnHint").textContent = "Procurando os números das casas perto das entregas…";
+    try {
+      for (let i = 0; i < S.order.length; i += 30) {
+        const parts = S.order.slice(i, i + 30).map((x) => `node(around:250,${x.lat.toFixed(6)},${x.lng.toFixed(6)})["addr:housenumber"];way(around:250,${x.lat.toFixed(6)},${x.lng.toFixed(6)})["addr:housenumber"];`).join("");
+        await overpass(`[out:json][timeout:25];(${parts});out center;`);
+      }
+    } catch (e) { $("hnHint").textContent = "Os números das casas não estão disponíveis agora (OpenStreetMap)."; return; }
+    matchDoors(); renderResult(); renderHN();
+  }
+  // procura no mapa a casa com o mesmo número da entrega, até 400 m do pino
+  function matchDoors() {
+    S.matchKeys = new Set();
+    for (const st of S.order) {
+      const door = normDoor(doorOf(st.items[0])).replace(/^lote/, "");
+      if (!door) { st.doorMatch = null; continue; }
+      let best = null, near = false;
+      for (const [k, h] of hnAll) {
+        const d = hav(st, h) * 1000;
+        if (d <= 150) near = true;
+        if (d <= 400 && normDoor(h.n) === door && (!best || d < best.d)) best = { d, k, h };
+      }
+      st.doorMatch = best ? { d: best.d } : near ? { none: true } : null;
+      if (best) S.matchKeys.add(best.k);
+    }
+  }
+  function doorText(st) {
+    const door = doorOf(st.items[0]); const m = st.doorMatch;
+    if (!door || !m) return "";
+    return m.none ? `<span class="hint fail">nº ${esc(door)} não aparece no mapa perto do pino</span>` : `<span class="doorok">nº ${esc(door)} encontrado no mapa a ${Math.round(m.d)} m do pino</span>`;
+  }
+  async function loadHouseNumbers() {
+    const b = lmap.getBounds(), f = (v) => (Math.floor(v * 100) / 100).toFixed(2), c = (v) => (Math.ceil(v * 100) / 100).toFixed(2);
+    const key = [f(b.getSouth()), f(b.getWest()), c(b.getNorth()), c(b.getEast())].join(",");
+    if (!hnAreas.has(key)) {
+      $("hnHint").textContent = "Carregando números das casas…";
+      try { await overpass(`[out:json][timeout:20];(node["addr:housenumber"](${key});way["addr:housenumber"](${key}););out center 3000;`); hnAreas.add(key); }
+      catch (e) { $("hnHint").textContent = "Os números das casas não estão disponíveis agora (OpenStreetMap)."; }
+      if (S.order.length) { matchDoors(); renderResult(); }
+    }
+    renderHN();
+  }
+  function renderHN() {
+    if (!lmap || useSvg) return;
+    hnLayer.clearLayers();
+    if (lmap.getZoom() < 16) return;
+    const b = lmap.getBounds().pad(0.2); let n = 0;
+    for (const [k, h] of hnAll) {
+      if (!b.contains([h.lat, h.lng]) || n > 2500) continue;
+      const hit = S.matchKeys && S.matchKeys.has(k);
+      L.marker([h.lat, h.lng], { interactive: false, keyboard: false, zIndexOffset: hit ? 500 : -500, icon: L.divIcon({ className: "", html: `<div class="hnum${hit ? " match" : ""}">${esc(h.n)}</div>`, iconSize: [0, 0] }) }).addTo(hnLayer);
+      n++;
+    }
+    $("hnHint").textContent = n ? `${n} números de casas nesta área. Em amarelo: a casa com o número da entrega.` : "O OpenStreetMap não tem números de casas nesta área. Use \"Street View\" na entrega.";
+  }
+  async function drawMap(keepView) {
+    if (!S.order.length) return;
+    const pts = seqPoints();
+    const line = pts.map((x) => [x.p.lat, x.p.lng]); if (S.roundTrip) line.splice(line.length, 0, [S.start.lat, S.start.lng]);
+    if (useSvg) { drawSvg(pts, line); return; }
+    layer.clearLayers();
+    const key = line.map((x) => x.join()).join(";");
+    if (geomKey !== key) { geomKey = key; routeGeom = null; fetchGeom(line, key); }
+    L.polyline(routeGeom || line, { color: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6847", weight: 4, opacity: .8, dashArray: routeGeom ? null : "6 6" }).addTo(layer);
+    (S.diffs || []).forEach((f) => {
+      L.marker([f.r.lat, f.r.lng], { interactive: false, icon: L.divIcon({ className: "", html: '<div class="altpin"></div>', iconSize: [0, 0] }) }).addTo(layer);
+      L.polyline([[f.st.lat, f.st.lng], [f.r.lat, f.r.lng]], { color: "#1f4fd1", weight: 2, dashArray: "4 4" }).addTo(layer);
+    });
+    pts.forEach((x) => {
+      // caixa branca: rua e número da porta de cada volume da parada
+      const doors = x.s ? [...new Set(x.s.items.map((y) => { const n = (S.map.num >= 0 && y.num) || doorNumber(y.end), r = streetOf(y.end); return [r, n ? "nº " + n : ""].filter(Boolean).join(", "); }).filter(Boolean))] : [];
+      const door = doors.length ? `<span class="door">${esc(doors.join(" / "))}</span>` : "";
+      // número VDC = etiqueta do pacote (coluna Label); caixa azul para não confundir com o número da casa
+      const vdc = x.s ? `<span class="vdc">VDC ${esc(x.s.items.map((y) => y.id).join(", "))}</span>` : "";
+      const icon = L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${x.kind}${x.s && x.s.items.some((y) => y.moved) ? " moved" : x.s && x.s.items.some((y) => y.fromMem) ? " mem" : ""}">${x.label}</div><div class="tags">${vdc}${door}</div></div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+      const m = L.marker([x.p.lat, x.p.lng], { icon, zIndexOffset: x.kind === "next" ? 1000 : 0, draggable: !!x.s }).addTo(layer);
+      if (x.s) m.on("dragend", () => {
+        const to = m.getLatLng(), st = x.s;
+        const d = Math.round(hav(st, { lat: to.lat, lng: to.lng }) * 1000);
+        const box = document.createElement("div"); box.className = "movebox";
+        box.innerHTML = `<b>Mover a entrega ${esc(st.items.map((y) => y.id).join(", "))} para aqui?</b><span class="hint">${d} m do lugar anterior. A rota é recalculada.</span><span class="row"><button class="btn small okbtn">Mover</button><button class="btn small">Cancelar</button></span>`;
+        const [yes, no] = box.querySelectorAll("button");
+        yes.onclick = () => { lmap.closePopup(); movePin(st, to.lat, to.lng); };
+        no.onclick = () => { lmap.closePopup(); m.setLatLng([st.lat, st.lng]); };
+        L.popup({ closeButton: false }).setLatLng(to).setContent(box).openOn(lmap);
+      });
+      m.bindPopup(x.s ? `<b>${esc(x.label)}. ${esc(x.s.items.map((y) => y.id).join(", "))}</b><br>${esc(x.s.nome)}<br>${esc(x.s.addr)}${doorText(x.s) ? "<br>" + doorText(x.s) : ""}${stOf(x.s) ? "<br>" + statusBadge(x.s) : ""}<br><a target="_blank" rel="noopener" href="${wazeUrl(x.s)}">Waze</a> · <a target="_blank" rel="noopener" href="${gmapsOne(x.s)}">Google Maps</a> · <a target="_blank" rel="noopener" href="${streetView(x.s)}">Street View</a>` : (x.label === "F" ? "<b>Ponto final</b><br>" + esc(S.endPt.label) : "<b>Ponto de partida</b><br>" + esc(S.start.label)));
+    });
+    if (!keepView) lmap.fitBounds(L.latLngBounds(line), { padding: [30, 30] });
+  }
+  // traçado pelas ruas, pedido em blocos de 25 pontos para não passar do limite do servidor
+  async function fetchGeom(line, key) {
+    const out = [];
+    try {
+      for (let i = 0; i < line.length - 1; i += 24) {
+        const part = line.slice(i, i + 25);
+        const coords = part.map((p) => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";");
+        const j = await getJSON(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+        if (j.code !== "Ok" || geomKey !== key) return;
+        out.push(...j.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]));
+      }
+      if (geomKey === key) { routeGeom = out; drawMap(true); }
+    } catch (e) {}
+  }
+  function drawSvg(pts, line) {
+    const box = $("svgmap"); const W = box.clientWidth || 700, H = box.clientHeight || 460, pad = 34;
+    const lats = line.map((x) => x[0]), lngs = line.map((x) => x[1]);
+    const minLa = Math.min(...lats), maxLa = Math.max(...lats), minLo = Math.min(...lngs), maxLo = Math.max(...lngs);
+    const kx = Math.cos(((minLa + maxLa) / 2) * Math.PI / 180);
+    const sx = (maxLo - minLo) * kx || 1e-3, sy = (maxLa - minLa) || 1e-3;
+    const top = $("mapNote").hidden ? pad : ($("mapNote").offsetHeight || 60) + 30;
+    const sc = Math.min((W - 2 * pad) / sx, (H - pad - top) / sy);
+    const ox = (W - sx * sc) / 2, oy = top + (H - pad - top - sy * sc) / 2;
+    const P = (la, lo) => [ox + (lo - minLo) * kx * sc, oy + (maxLa - la) * sc];
+    const path = line.map((x, i) => (i ? "L" : "M") + P(x[0], x[1]).map((v) => v.toFixed(1)).join(" ")).join("");
+    const cs = getComputedStyle(document.documentElement);
+    const c = (n) => cs.getPropertyValue(n).trim();
+    let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Esquema da rota"><rect width="${W}" height="${H}" fill="${c("--soft")}"/>`;
+    g += `<path d="${path}" fill="none" stroke="${c("--accent")}" stroke-width="3" stroke-dasharray="6 5" stroke-linejoin="round"/>`;
+    pts.forEach((x) => {
+      const [X, Y] = P(x.p.lat, x.p.lng);
+      const fill = x.kind === "start" ? c("--ink") : x.kind === "next" ? c("--sign") : x.kind === "done" ? "#8a948f" : x.kind === "fail" ? "#c0392b" : c("--accent");
+      const tc = x.kind === "start" ? c("--panel") : x.kind === "next" ? c("--sign-ink") : "#fff";
+      g += x.kind === "start" ? `<rect x="${X - 13}" y="${Y - 13}" width="26" height="26" rx="5" fill="${fill}" stroke="#fff" stroke-width="2"/>` : `<circle cx="${X}" cy="${Y}" r="13" fill="${fill}" stroke="#fff" stroke-width="2"/>`;
+      g += `<text x="${X}" y="${Y + 4.5}" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700" font-size="12" fill="${tc}">${x.label}</text>`;
+    });
+    box.innerHTML = g + "</svg>";
+  }
+  window.addEventListener("resize", () => { if (useSvg && S.order.length) drawMap(true); });
+
+  // ---------- custos e saldo do dia ----------
+  // combustível = km ÷ (km por litro) × preço; depreciação do dia = valor do veículo × % mensal ÷ dias de trabalho;
+  // receita = pacotes entregues × valor por entrega; saldo = receita − combustível − depreciação − outros custos
+  const COST_DEF = { cFuel: "1,65", cKml: "12", cCar: "15000", cDep: "1,5", cDays: "22", cOther: "0", cPay: "1,20" };
+  const costCfg = store.get("rota.custos", COST_DEF);
+  let kmTouched = false, delTouched = false;
+  const val = (id) => { const n = num(String($(id).value).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "")); return isFinite(n) ? n : 0; };
+  const eur = (v) => v.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+  const nf = (v, d = 1) => v.toLocaleString("pt-PT", { maximumFractionDigits: d });
+  Object.keys(COST_DEF).forEach((id) => {
+    $(id).value = costCfg[id] ?? COST_DEF[id];
+    $(id).addEventListener("input", () => { costCfg[id] = $(id).value; store.set("rota.custos", costCfg); updateCost(); });
+  });
+  $("cKm").addEventListener("input", () => { kmTouched = true; updateCost(); });
+  $("cDel").addEventListener("input", () => { delTouched = true; updateCost(); });
+  function dayCounts() {
+    const vol = S.order.reduce((a, x) => a + x.items.length, 0);
+    const done = S.order.filter((x) => stOf(x)?.st === "ok").reduce((a, x) => a + x.items.length, 0);
+    const fail = S.order.filter((x) => stOf(x)?.st === "fail").reduce((a, x) => a + x.items.length, 0);
+    return { vol, done, fail };
+  }
+  function computeDay() {
+    const km = val("cKm"), kml = val("cKml"), litros = kml > 0 ? km / kml : 0;
+    const fuel = litros * val("cFuel");
+    const dep = val("cDays") > 0 ? val("cCar") * val("cDep") / 100 / val("cDays") : 0;
+    const other = val("cOther"), entregas = val("cDel"), receita = entregas * val("cPay");
+    return { km, litros, fuel, dep, other, entregas, receita, custos: fuel + dep + other, saldo: receita - fuel - dep - other };
+  }
+  function updateCost() {
+    if (S.order.length) {
+      const c = dayCounts();
+      if (!kmTouched) $("cKm").value = nf(S.totDist / 1000, 1);
+      if (!delTouched) $("cDel").value = String(c.done || c.fail ? c.done : c.vol);
+      $("cDelHint").textContent = c.done || c.fail ? `${c.done} entregues, ${c.fail} não entregues, de ${c.vol}` : `${c.vol} pacotes na rota (confirme cada entrega para contar só as feitas)`;
+      $("cKmHint").textContent = kmTouched ? "valor digitado" : "da rota calculada";
+    }
+    const d = computeDay();
+    $("calcBox").innerHTML = `
+      <div><span>Combustível (${nf(d.litros, 1)} L)</span><b>− ${eur(d.fuel)}</b></div>
+      <div><span>Depreciação do dia</span><b>− ${eur(d.dep)}</b></div>
+      ${d.other ? `<div><span>Outros custos</span><b>− ${eur(d.other)}</b></div>` : ""}
+      <div><span>Receita (${nf(d.entregas, 0)} × ${eur(val("cPay"))})</span><b>+ ${eur(d.receita)}</b></div>
+      <div class="total ${d.saldo >= 0 ? "pos" : "neg"}"><span>Saldo do dia</span><b>${eur(d.saldo)}</b></div>`;
+  }
+  // histórico
+  let hist = store.get("rota.hist", []);
+  function renderHist() {
+    $("histCount").textContent = hist.length ? `${hist.length} dia(s) · saldo total ${eur(hist.reduce((a, h) => a + h.saldo, 0))}` : "Nenhum dia guardado ainda.";
+    $("histBody").innerHTML = hist.map((h, i) => `<tr>
+      <td>${esc(h.data)}<br><span class="hint">${esc(h.rota || "")}</span></td>
+      <td class="n">${nf(h.entregas, 0)}${h.naoEntregues ? `<br><span class="hint fail">${h.naoEntregues} não</span>` : ""}</td><td class="n">${nf(h.km, 1)}</td>
+      <td class="n">${eur(h.custos)}</td><td class="n"><b>${eur(h.saldo)}</b></td>
+      <td><button class="btn small" data-del="${i}" aria-label="Apagar dia">✕</button></td></tr>`).join("");
+    $("histBody").querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => {
+      if (b.dataset.sure) { hist.splice(+b.dataset.del, 1); store.set("rota.hist", hist); renderHist(); }
+      else { b.dataset.sure = "1"; b.textContent = "Apagar?"; }
+    }));
+  }
+  $("saveDay").onclick = () => {
+    const d = computeDay(), now = new Date();
+    const c = S.order.length ? dayCounts() : { vol: 0, fail: 0 };
+    hist.unshift({
+      data: now.toLocaleDateString("pt-PT") + " " + now.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+      rota: ($("fileInfo").textContent.split(":")[0] || "").trim(), paradas: S.order.length, pacotesRota: c.vol,
+      entregas: d.entregas, naoEntregues: c.fail || 0, km: d.km, litros: d.litros, precoL: val("cFuel"), combustivel: d.fuel, depreciacao: d.dep,
+      outros: d.other, valorEntrega: val("cPay"), receita: d.receita, custos: d.custos, saldo: d.saldo,
+    });
+    store.set("rota.hist", hist); renderHist();
+    $("saveMsg").textContent = `Guardado: saldo de ${eur(d.saldo)}. Veja na aba Histórico.`;
+  };
+  $("histExport").onclick = async () => {
+    if (typeof XLSX === "undefined" || !hist.length) return;
+    const head = ["Data", "Rota", "Paradas", "Pacotes na rota", "Pacotes entregues", "Não entregues", "Km", "Litros", "Preço €/L", "Combustível €", "Depreciação €", "Outros custos €", "Valor por entrega €", "Receita €", "Custos totais €", "Saldo €"];
+    const rows = hist.map((h) => [h.data, h.rota, h.paradas, h.pacotesRota, h.entregas, h.naoEntregues || 0, +h.km.toFixed(1), +h.litros.toFixed(2), h.precoL, +h.combustivel.toFixed(2), +h.depreciacao.toFixed(2), +h.outros.toFixed(2), h.valorEntrega, +h.receita.toFixed(2), +h.custos.toFixed(2), +h.saldo.toFixed(2)]);
+    const sum = (k) => +hist.reduce((a, h) => a + h[k], 0).toFixed(2);
+    rows.push(["TOTAL", "", "", "", sum("entregas"), +hist.reduce((a, h) => a + (h.naoEntregues || 0), 0), sum("km"), sum("litros"), "", sum("combustivel"), sum("depreciacao"), sum("outros"), "", sum("receita"), sum("custos"), sum("saldo")]);
+    const ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
+    ws["!cols"] = head.map((h, i) => ({ wch: i < 2 ? 22 : 14 }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Histórico");
+    const name = "historico-rotas.xlsx";
+    try {
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+      if (dl) { await dl.save({ filename: name, data: new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) }); return; }
+    } catch (e) { if (e && e.code) return; }
+    XLSX.writeFile(wb, name);
+  };
+  // abrir/fechar e abas
+  const setDrawer = (open) => { $("drawer").classList.toggle("open", open); $("costBtn").setAttribute("aria-expanded", String(open)); if (open) updateCost(); };
+  $("costBtn").onclick = () => setDrawer(!$("drawer").classList.contains("open"));
+  $("closeDrawer").onclick = () => setDrawer(false);
+  const setTab = (h) => { $("paneDay").hidden = h; $("paneHist").hidden = !h; $("tabDay").setAttribute("aria-selected", String(!h)); $("tabHist").setAttribute("aria-selected", String(h)); };
+  $("tabDay").onclick = () => setTab(false); $("tabHist").onclick = () => setTab(true);
+  renderHist(); updateCost();
+
+  // ---------- endereços de início e fim guardados ----------
+  const DEF = { startAddr: "J D C Transportes, 4470-600 Moreira, Maia", endAddr: "Avenida da Colina 115, 4740-032 Apúlia, Esposende" };
+  ["startAddr", "endAddr"].forEach((id) => { $(id).value = store.get("rota." + id, DEF[id]); $(id).addEventListener("change", () => store.set("rota." + id, $(id).value)); });
+  const em = store.get("rota.endMode", "addr"); const emEl = document.querySelector(`input[name=endMode][value=${em}]`); if (emEl) emEl.checked = true;
+  document.querySelectorAll("input[name=endMode]").forEach((r) => r.addEventListener("change", () => store.set("rota.endMode", r.value)));
+  const sm = store.get("rota.startMode", "addr"); const smEl = document.querySelector(`input[name=startMode][value=${sm}]`); if (smEl) smEl.checked = true;
+  document.querySelectorAll("input[name=startMode]").forEach((r) => r.addEventListener("change", () => store.set("rota.startMode", r.value)));
+
+  // ---------- início com exemplo ----------
+  initMap();
+  loadTable(EXAMPLE.headers, EXAMPLE.rows.map((r) => r.slice()));
+  run();
+})();
+</script>
+
+<script>if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+</body></html>
