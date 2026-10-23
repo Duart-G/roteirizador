@@ -212,6 +212,22 @@ body.driving .costbtn { display: none; }
 .pin.d-done { background: #8a948f; opacity: .75; }
 .pin.d-fail { background: #c0392b; color: #fff; opacity: .85; }
 .pin.d-end { background: var(--ink); color: var(--panel); border-radius: 6px; }
+.dnav { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 850; display: flex; gap: 12px; align-items: flex-start; background: #0f5132; color: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
+.narrow { font-size: 40px; line-height: 1; min-width: 44px; text-align: center; }
+.ntext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ntext b { font: 700 26px/1.1 var(--font-display); }
+.ntext span { font-size: 17px; font-weight: 600; }
+.ntext small { font-size: 13px; opacity: .8; }
+.nacts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.nacts .btn { font-size: 16px; padding: 10px 14px; }
+.nacts .failbtn { background: #fff; }
+.dnavbar { position: absolute; left: 10px; right: 70px; bottom: 24px; z-index: 850; display: flex; align-items: center; gap: 8px; background: var(--panel); border-radius: 12px; padding: 8px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.ninfo { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.ninfo b { font: 700 22px/1.1 var(--font-display); color: var(--ok); }
+.ninfo span { font-size: 13px; color: var(--muted); }
+.navmode .dnextbar, .navmode .dgps { display: none; }
+.mearrow { width: 30px; height: 30px; }
+@media (max-width: 760px) { .drive.navmode .dmapwrap { height: 74vh; height: 74dvh; } }
 .medot { width: 18px; height: 18px; border-radius: 50%; background: #1f6fe5; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(31,111,229,.35), 0 1px 4px rgba(0,0,0,.4); transform: translate(-50%, -50%); }
 @media (max-width: 760px) {
   .drive { display: flex; flex-direction: column; padding: 0; gap: 0; overflow-y: auto; }
@@ -354,6 +370,8 @@ body.driving .costbtn { display: none; }
     <div id="dmap"></div>
     <div class="dgps" id="dGps"></div>
     <div class="dnextbar" id="dNextBar"></div>
+    <div class="dnav" id="dNav" hidden></div>
+    <div class="dnavbar" id="dNavBar" hidden></div>
     <button class="dfab" id="dLocate" title="Mostrar a minha posição" aria-label="Mostrar a minha posição">◎</button>
   </div>
 </div>
@@ -433,7 +451,7 @@ body.driving .costbtn { display: none; }
   };
 
   // estado do modo entrega (ver mais abaixo)
-  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0 };
+  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0, nav: false, voice: store.get("rota.voz", 1) === 1, lock: null, offN: 0, offRoute: false };
 
   // ---------- exemplo ----------
   const EXAMPLE = {
@@ -1357,7 +1375,7 @@ body.driving .costbtn { display: none; }
         if (j.code !== "Ok" || geomKey !== key) return;
         out.push(...j.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]));
       }
-      if (geomKey === key) { routeGeom = out; drawMap(true); }
+      if (geomKey === key) { routeGeom = out; drawMap(true); if (DR.on) renderDrive(); }
     } catch (e) {}
   }
   function drawSvg(pts, line) {
@@ -1516,17 +1534,18 @@ body.driving .costbtn { display: none; }
     const tg = driveTarget(), o = tg && legOrigin(tg);
     if (!tg || !o || DR.legBusy) return;
     const key = legKeyOf(o, tg);
-    const moved = o.gps && DR.legFrom && hav(DR.legFrom, o.p) * 1000 > 200;
+    // no modo navegação só se pede caminho novo quando o carro sai dele; fora dele, a cada 200 m
+    const moved = (o.gps && DR.legFrom && (DR.nav ? DR.offRoute : hav(DR.legFrom, o.p) * 1000 > 200)) || (DR.nav && DR.leg && !DR.leg.geom && Date.now() - DR.leg.t > 20000);
     if (DR.leg && DR.leg.key === key && !moved) return;
     DR.legBusy = true;
     const from = { lat: o.p.lat, lng: o.p.lng };
-    let leg = { key, geom: null, dur: roadSec(from, tg.p), dist: hav(from, tg.p) * 1300 };
+    let leg = { key, geom: null, dur: roadSec(from, tg.p), dist: hav(from, tg.p) * 1300, t: Date.now() };
     try {
-      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng.toFixed(6)},${from.lat.toFixed(6)};${tg.p.lng.toFixed(6)},${tg.p.lat.toFixed(6)}?overview=full&geometries=geojson`, AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {});
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng.toFixed(6)},${from.lat.toFixed(6)};${tg.p.lng.toFixed(6)},${tg.p.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true`, AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {});
       const j = await res.json();
-      if (j.code === "Ok") { const r = j.routes[0]; leg = { key, geom: r.geometry.coordinates.map((c) => [c[1], c[0]]), dur: r.duration, dist: r.distance }; }
+      if (j.code === "Ok") { const r = j.routes[0]; leg = { key, geom: r.geometry.coordinates.map((c) => [c[1], c[0]]), dur: r.duration, dist: r.distance, t: Date.now() }; prepLeg(leg, r.legs[0].steps || []); }
     } catch (e) {}
-    DR.leg = leg; DR.legFrom = from; DR.legBusy = false;
+    DR.leg = leg; DR.legFrom = from; DR.legBusy = false; DR.offRoute = false;
     renderDrive();
   }
   function driveEtas() {
@@ -1569,6 +1588,7 @@ body.driving .costbtn { display: none; }
     startGps(); renderDrive(true);
   }
   function closeDrive() {
+    if (DR.nav) stopNav();
     DR.on = false; $("drive").hidden = true; document.body.classList.remove("driving"); store.set("rota.drive", 0);
     if (DR.watch != null) { navigator.geolocation.clearWatch(DR.watch); DR.watch = null; }
     setTimeout(() => { if (lmap) lmap.invalidateSize(); }, 60);
@@ -1582,11 +1602,15 @@ body.driving .costbtn { display: none; }
       $("dGps").textContent = "";
       DR.meLayer.clearLayers();
       L.circle([DR.me.lat, DR.me.lng], { radius: Math.min(DR.me.acc, 300), color: "#1f6fe5", weight: 1, fillOpacity: .1, interactive: false }).addTo(DR.meLayer);
-      L.marker([DR.me.lat, DR.me.lng], { interactive: false, zIndexOffset: 2000, icon: L.divIcon({ className: "", html: '<div class="medot"></div>', iconSize: [0, 0] }) }).addTo(DR.meLayer);
+      // a andar, o ponto vira uma seta na direção do movimento
+      const h = p.coords.heading, moving = typeof h === "number" && isFinite(h) && (p.coords.speed || 0) > 1;
+      const me = moving ? `<svg class="mearrow" viewBox="0 0 30 30" style="transform:translate(-50%,-50%) rotate(${Math.round(h)}deg)"><path d="M15 2 L26 27 L15 21 L4 27 Z" fill="#1f6fe5" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>` : '<div class="medot"></div>';
+      L.marker([DR.me.lat, DR.me.lng], { interactive: false, zIndexOffset: 2000, icon: L.divIcon({ className: "", html: me, iconSize: [0, 0] }) }).addTo(DR.meLayer);
+      if (DR.nav) { if (first) renderDrive(false); else navUpdate(); if (Date.now() - (DR.lastDraw || 0) > 30000) renderDrive(false); return; }
       if (DR.follow) DR.map.panTo([DR.me.lat, DR.me.lng], { animate: true });
       if (first || Date.now() - (DR.lastDraw || 0) > 15000) { if (first) DR.fitKey = ""; renderDrive(); }
     }, () => { $("dGps").textContent = "Sem localização: autorize a localização ao app para ver onde está e o trecho a partir daí."; },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+    { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 });
   }
   function renderDrive(fit) {
     if (!DR.on) return;
@@ -1595,8 +1619,9 @@ body.driving .costbtn { display: none; }
     driveLeg();
     const tg = driveTarget(), tk = tg ? String(tg.end ? "F" : tg.i) : "";
     if (fit === undefined) fit = DR.fitKey !== tk;
-    if (fit) DR.follow = false;
     DR.fitKey = tk;
+    if (DR.nav) fit = false;
+    if (fit) DR.follow = false;
     const { eta, end } = driveEtas();
     const okN = S.order.filter((s) => stOf(s)?.st === "ok").length, failN = S.order.filter((s) => stOf(s)?.st === "fail").length, N = S.order.length;
     $("dMeta").textContent = `${end ? "Término: " + hhmm(end) + " · " : ""}${N} paradas · ${fmtKm(S.totDist)} km · ${okN} entregue(s)${failN ? ", " + failN + " não" : ""}`;
@@ -1625,27 +1650,29 @@ body.driving .costbtn { display: none; }
       card.innerHTML = S.endPt
         ? `<div class="dch"><h2>Destino final</h2></div><div class="dsub"><span class="dot"></span>${esc(S.endPt.label || "")}${end ? " · chegada " + hhmm(end) : ""}</div>
           <p class="hint">Todas as paradas confirmadas: ${okN} entregue(s), ${failN} não entregue(s).</p>
-          <div class="dacts"><a class="dbtn nav" target="_blank" rel="noopener" href="${gmapsOne(S.endPt)}"><i>➤</i>Navegar</a><a class="dbtn" target="_blank" rel="noopener" href="${wazeUrl(S.endPt)}"><i>W</i>Waze</a><button class="dbtn" id="dSaveDay"><i>€</i>Guardar o dia</button></div>`
+          <div class="dacts"><button class="dbtn nav" id="dGo"><i>➤</i>${DR.nav ? "A navegar" : "Navegar"}</button><a class="dbtn" target="_blank" rel="noopener" href="${gmapsOne(S.endPt)}"><i>G</i>Google Maps</a><button class="dbtn" id="dSaveDay"><i>€</i>Guardar o dia</button></div>`
         : `<div class="dch"><h2>Rota terminada</h2></div><p class="hint">${okN} entregue(s), ${failN} não entregue(s).</p><div class="dacts"><button class="dbtn" id="dSaveDay"><i>€</i>Guardar o dia</button></div>`;
       $("dSaveDay").onclick = () => setDrawer(true);
+      const go = $("dGo"); if (go) go.onclick = () => (DR.nav ? navUpdate() : startNav());
     } else {
       const s = S.order[vi], t = stOf(s), x = s.items[0], isT = tg && tg.i === vi;
       const leg = isT && DR.leg && DR.leg.key === legKeyOf(legOrigin(tg), tg) ? DR.leg : null;
       card.innerHTML = `<div class="dch"><h2>${esc(stopTitle(s))}</h2>${DR.view >= 0 ? '<button class="dclose" id="dClose" aria-label="Fechar">✕</button>' : ""}</div>
         <div class="dsub"><span class="dot ${t ? t.st : ""}"></span>${vi + 1}/${N} · ${t ? statusBadge(s) + " " + hhmm(t.t) : (eta[vi] ? "previsto " + hhmm(eta[vi]) : "")}${leg ? ` · ${fmtMin(leg.dur)} · ${fmtKm(leg.dist)} km` : ""}</div>
         <div class="dacts">
-          <a class="dbtn nav" target="_blank" rel="noopener" href="${gmapsOne(s)}"><i>➤</i>Navegar</a>
+          ${t ? `<a class="dbtn nav" target="_blank" rel="noopener" href="${gmapsOne(s)}"><i>➤</i>Google Maps</a>` : `<button class="dbtn nav" id="dGo"><i>➤</i>${DR.nav ? "A navegar" : "Navegar"}</button>`}
           <button class="dbtn" id="dNext"><i>⇥</i>Próxima</button>
           ${t ? `<button class="dbtn" id="dUndo" style="grid-column:span 2"><i>↺</i>Desfazer</button>` : `<button class="dbtn fail" id="dFail"><i>✗</i>Não entregue</button><button class="dbtn ok" id="dOk"><i>✓</i>Entregue</button>`}
         </div>
         ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
-        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button></div>
+        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button></div>
         <div class="drow"><span class="ic">📦</span><div><b>VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
         <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
         <div class="drow"><span class="ic">ID</span><div>${s.items.map((y) => esc(y.codigo || y.id)).join("<br>")}<br><span class="hint">Linha ${s.items.map((y) => y.i + 2).join(", ")} da planilha</span></div></div>
         ${s.obs ? `<div class="drow"><span class="ic">ℹ</span><div>${esc(s.obs)}</div></div>` : ""}`;
       const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(); };
       $("dNext").onclick = () => { const j = nextAfter(vi); if (j >= 0) { DR.view = j; DR.failing = false; renderDrive(); focusStop(S.order[j]); } };
+      const go = $("dGo"); if (go) go.onclick = () => { DR.view = vi; if (DR.nav) renderDrive(false); else startNav(); };
       $("dDoor").onclick = () => { DR.follow = false; DR.map.setView([s.lat, s.lng], 18); };
       if (t) $("dUndo").onclick = () => { DR.view = vi; setStatus(s, null); };
       else {
@@ -1663,11 +1690,15 @@ body.driving .costbtn { display: none; }
     $("dNextBar").innerHTML = nx >= 0 ? `<button id="dNextGo"><b>› ${nx + 1}</b>${esc(stopTitle(S.order[nx]))}</button>` : "";
     if (nx >= 0) $("dNextGo").onclick = () => { DR.view = nx; DR.failing = false; renderDrive(); focusStop(S.order[nx]); };
     drawDrive(tg, fit);
+    if (DR.nav) navUpdate();
   }
   function focusStop(s) { if (DR.map && s) { DR.follow = false; DR.map.setView([s.lat, s.lng], Math.max(DR.map.getZoom(), 15)); } }
   function drawDrive(tg, fit) {
     if (!DR.map) return;
     DR.layer.clearLayers();
+    // rota completa pelas ruas, a ligar todas as entregas, em azul claro por baixo do trecho atual
+    const all = seqPoints().map((x) => [x.p.lat, x.p.lng]);
+    L.polyline(routeGeom || all, { color: "#7da7e8", weight: 5, opacity: .55, dashArray: routeGeom ? null : "4 8", interactive: false }).addTo(DR.layer);
     const o = tg && legOrigin(tg);
     if (tg && o) {
       const g = DR.leg && DR.leg.key === legKeyOf(o, tg) && DR.leg.geom;
@@ -1698,6 +1729,126 @@ body.driving .costbtn { display: none; }
     else { startGps(); renderDrive(true); }
   };
   $("driveBtn").onclick = openDrive;
+
+  // ---------- navegação curva a curva dentro do app (OSRM, sem Google) ----------
+  // Segue o GPS no mapa, mostra a próxima manobra com a distância, fala as instruções e
+  // recalcula o caminho se o carro sair dele. Ao chegar mostra Entregue / Não entregue.
+  const DIRS = { left: "à esquerda", right: "à direita", "slight left": "ligeiramente à esquerda", "slight right": "ligeiramente à direita", "sharp left": "bem à esquerda", "sharp right": "bem à direita", straight: "em frente", uturn: "inverta a marcha" };
+  const ARROW = { left: "↰", right: "↱", "slight left": "↖", "slight right": "↗", "sharp left": "↰", "sharp right": "↱", straight: "↑", uturn: "↶" };
+  function stepText(s) {
+    const nm = s.name || s.ref || "", via = nm ? " para " + nm : "", dir = DIRS[s.mod] || "";
+    switch (s.type) {
+      case "depart": return "Siga" + (nm ? " por " + nm : "");
+      case "arrive": return "Chegou à entrega";
+      case "roundabout": case "rotary": return `Na rotunda, saia na ${s.exit ? s.exit + "ª" : ""} saída${via}`;
+      case "roundabout turn": return `Na rotunda, vire ${dir}${via}`;
+      case "exit roundabout": case "exit rotary": return "Saia da rotunda" + via;
+      case "merge": return "Entre na via" + via;
+      case "on ramp": return "Entre no acesso" + (dir ? " " + dir : "") + via;
+      case "off ramp": return "Saia" + (dir ? " " + dir : "") + via;
+      case "fork": return `Na bifurcação, mantenha-se ${dir}${via}`;
+      case "end of road": return `No fim da rua, vire ${dir}${via}`;
+      case "continue": case "new name": return !dir || s.mod === "straight" ? "Continue" + (nm ? " por " + nm : " em frente") : `Continue ${dir}${via}`;
+      default: return s.mod === "uturn" ? "Inverta a marcha" + via : s.mod === "straight" ? "Siga em frente" + via : `Vire ${dir}${via}`;
+    }
+  }
+  const stepArrow = (s) => (s.type === "arrive" ? "⚑" : /roundabout|rotary/.test(s.type) ? "⟳" : ARROW[s.mod] || "↑");
+  const fmtDist = (m) => (m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + " m" : fmtKm(m) + " km");
+  const sayDist = (m) => (m < 1000 ? Math.round(m / 50) * 50 + " metros" : fmtKm(m) + " quilómetros");
+  // posição do GPS sobre o caminho: distância à linha e metros já percorridos
+  function onLeg(p, leg) {
+    const k = Math.cos(p.lat * Math.PI / 180) * 111320, xy = (q) => [q[1] * k, q[0] * 110540], P = xy([p.lat, p.lng]);
+    let best = { d: Infinity, along: 0 };
+    for (let i = 0; i < leg.geom.length - 1; i++) {
+      const A = xy(leg.geom[i]), B = xy(leg.geom[i + 1]), dx = B[0] - A[0], dy = B[1] - A[1], L2 = dx * dx + dy * dy;
+      const t = L2 ? Math.max(0, Math.min(1, ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / L2)) : 0;
+      const d = Math.hypot(P[0] - A[0] - t * dx, P[1] - A[1] - t * dy);
+      if (d < best.d) best = { d, along: leg.cum[i] + t * (leg.cum[i + 1] - leg.cum[i]) };
+    }
+    return best;
+  }
+  function prepLeg(leg, steps) {
+    leg.cum = [0];
+    for (let i = 1; i < leg.geom.length; i++) leg.cum.push(leg.cum[i - 1] + hav({ lat: leg.geom[i - 1][0], lng: leg.geom[i - 1][1] }, { lat: leg.geom[i][0], lng: leg.geom[i][1] }) * 1000);
+    leg.len = leg.cum[leg.cum.length - 1] || 1;
+    let j = 0;
+    leg.steps = steps.map((s) => {
+      const loc = { lat: s.maneuver.location[1], lng: s.maneuver.location[0] };
+      let bi = j, bd = Infinity;
+      for (let i = j; i < leg.geom.length; i++) { const d = hav(loc, { lat: leg.geom[i][0], lng: leg.geom[i][1] }); if (d < bd) { bd = d; bi = i; } }
+      j = bi;
+      return { type: s.maneuver.type, mod: s.maneuver.modifier, exit: s.maneuver.exit, name: s.name, ref: s.ref, along: leg.cum[bi] };
+    });
+  }
+  function say(t) {
+    if (!DR.voice || !window.speechSynthesis) return;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = "pt-PT"; speechSynthesis.speak(u); } catch (e) {}
+  }
+  async function keepAwake(on) {
+    try {
+      if (on && navigator.wakeLock && !DR.lock) { DR.lock = await navigator.wakeLock.request("screen"); DR.lock.addEventListener("release", () => { DR.lock = null; }); }
+      if (!on && DR.lock) { DR.lock.release(); DR.lock = null; }
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", () => { if (DR.nav && document.visibilityState === "visible") keepAwake(true); });
+  function startNav() {
+    DR.nav = true; DR.follow = true; DR.spoken = ""; DR.arrived = ""; DR.offN = 0;
+    $("drive").classList.add("navmode"); keepAwake(true); startGps();
+    setTimeout(() => DR.map.invalidateSize(), 60);
+    const tg = driveTarget();
+    if (tg) say("Vamos para " + (tg.end ? "o destino final" : stopTitle(tg.p)));
+    $("drive").scrollTop = 0;
+    renderDrive(false);
+  }
+  function stopNav() {
+    DR.nav = false; $("drive").classList.remove("navmode"); $("dNav").hidden = true; $("dNavBar").hidden = true; keepAwake(false);
+    try { speechSynthesis.cancel(); } catch (e) {}
+    setTimeout(() => DR.map.invalidateSize(), 60);
+    renderDrive(true);
+  }
+  function navUpdate() {
+    if (!DR.nav) return;
+    const box = $("dNav"), bar = $("dNavBar"); box.hidden = false; bar.hidden = false;
+    const tg = driveTarget(), leg = DR.leg;
+    const exit = `<button class="chip" id="dNavExit">Sair</button>`;
+    const voice = `<button class="chip" id="dVoice">${DR.voice ? "🔊" : "🔇"}</button>`;
+    const wire = () => {
+      $("dNavExit").onclick = stopNav;
+      $("dVoice").onclick = () => { DR.voice = !DR.voice; store.set("rota.voz", DR.voice ? 1 : 0); navUpdate(); };
+      const ok = $("dArrOk"); if (ok) ok.onclick = () => $("dOk") && $("dOk").click();
+      const no = $("dArrNo"); if (no) no.onclick = () => { DR.failing = true; renderDrive(false); $("dCard").scrollIntoView({ behavior: "smooth", block: "center" }); };
+    };
+    if (!tg) { box.innerHTML = `<div class="ntext">Rota terminada.</div>`; bar.innerHTML = voice + exit; wire(); return; }
+    if (!DR.me) { box.innerHTML = `<div class="ntext">À espera da localização do GPS…</div>`; bar.innerHTML = voice + exit; wire(); return; }
+    const near = hav(DR.me, tg.p) * 1000;
+    let pr = null, step = null, next = null, left = near;
+    if (leg && leg.geom && leg.steps && leg.key === legKeyOf(legOrigin(tg), tg)) {
+      pr = onLeg(DR.me, leg);
+      // fora do caminho em duas leituras seguidas: pede um caminho novo a partir daqui
+      if (pr.d > 50) { if (++DR.offN >= 2 && Date.now() - leg.t > 8000) { DR.offRoute = true; DR.offN = 0; driveLeg(); } } else DR.offN = 0;
+      left = Math.max(0, leg.len - pr.along);
+      const k = leg.steps.findIndex((s, i) => i > 0 && s.along > pr.along + 8);
+      step = leg.steps[k >= 0 ? k : leg.steps.length - 1]; next = k >= 0 ? leg.steps[k + 1] : null;
+      step.left = Math.max(0, step.along - pr.along); step.key = leg.key + "#" + k;
+    }
+    const tLeft = leg && leg.len ? leg.dur * Math.min(1, left / leg.len) : roadSec(DR.me, tg.p);
+    bar.innerHTML = `<div class="ninfo"><b>${hhmm(Date.now() + tLeft * 1000)}</b><span>${fmtMin(tLeft)} · ${fmtDist(left)}</span></div>` + voice + exit;
+    const tkey = tg.end ? "F" : String(tg.i);
+    if (near < 40 || (pr && left < 25 && pr.d < 40)) {
+      box.innerHTML = tg.end
+        ? `<div class="narrow">⚑</div><div class="ntext"><b>Chegou ao destino final</b></div>`
+        : `<div class="narrow">⚑</div><div class="ntext"><b>Chegou: ${esc(stopTitle(tg.p))}</b><span>VDC ${esc(tg.p.items.map((y) => y.id).join(", "))}</span><div class="nacts"><button class="btn okbtn" id="dArrOk">✓ Entregue</button><button class="btn failbtn" id="dArrNo">✗ Não entregue</button></div></div>`;
+      if (DR.arrived !== tkey) { DR.arrived = tkey; say(tg.end ? "Chegou ao destino final" : "Chegou à entrega " + stopTitle(tg.p)); }
+    } else if (step) {
+      box.innerHTML = `<div class="narrow">${stepArrow(step)}</div><div class="ntext"><b>${fmtDist(step.left)}</b><span>${esc(stepText(step))}</span>${next && next.type !== "arrive" ? `<small>Depois: ${esc(stepText(next))}</small>` : ""}</div>`;
+      if (DR.spoken !== step.key) { DR.spoken = step.key; DR.spokenNear = ""; say((step.left > 80 ? "Em " + sayDist(step.left) + ", " : "") + stepText(step)); }
+      else if (step.left < 60 && DR.spokenNear !== step.key && step.type !== "arrive") { DR.spokenNear = step.key; say(stepText(step)); }
+    } else {
+      box.innerHTML = `<div class="narrow">↑</div><div class="ntext"><b>${fmtDist(near)}</b><span>A calcular o caminho pelas ruas…</span></div>`;
+    }
+    wire();
+    if (DR.follow) DR.map.setView([DR.me.lat, DR.me.lng], Math.max(DR.map.getZoom(), 17), { animate: true });
+  }
 
   // ---------- início: última planilha usada neste aparelho, ou o exemplo ----------
   initMap();
