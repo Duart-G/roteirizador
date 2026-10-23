@@ -1521,12 +1521,14 @@ body.driving .costbtn { display: none; }
     if (i >= 0) return { i, p: S.order[i] };
     return S.endPt ? { i: -1, p: S.endPt, end: true } : null;
   }
-  // de onde parte o trecho: GPS, senão a última entrega marcada, senão o ponto de partida
+  // de onde parte o trecho: da morada da última entrega marcada (enquanto o carro está a menos de
+  // 300 m dela); depois de sair dali, do GPS; sem nada marcado, do GPS ou do ponto de partida
   function legOrigin(tg) {
-    if (DR.me && (!tg || hav(DR.me, tg.p) < 150)) return { p: DR.me, gps: true };
+    const gps = DR.me && (!tg || hav(DR.me, tg.p) < 150);
     let last = null, lt = 0;
     S.order.forEach((s) => { const t = stOf(s); if (t && t.t > lt) { lt = t.t; last = s; } });
-    if (last) return { p: last };
+    if (last && (!gps || hav(DR.me, last) * 1000 < 300)) return { p: last };
+    if (gps) return { p: DR.me, gps: true };
     return S.start && !S.start.firstIsStart ? { p: S.start } : null;
   }
   const legKeyOf = (o, tg) => (tg.end ? "F" : tg.i) + "|" + (o ? (o.gps ? "gps" : ll(o.p)) : "");
