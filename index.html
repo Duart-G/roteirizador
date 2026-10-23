@@ -157,6 +157,70 @@ tr.next td.ord { color: var(--warn); }
 .hist td, .hist th { padding: 6px; }
 .hist td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* Modo entrega: mapa grande à direita, painel com lista e cartão da parada à esquerda; no telemóvel, mapa em cima. */
+body.driving { overflow: hidden; }
+body.driving .costbtn { display: none; }
+.drive { position: fixed; inset: 0; z-index: 1400; background: var(--bg); display: grid; grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 10px; padding: 10px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
+.dpanel { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.dbox { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.dhead { padding: 12px 14px 10px; }
+.dmeta { color: var(--muted); font-size: 14px; }
+.dname { font: 700 22px/1.2 var(--font-display); margin: 2px 0 8px; overflow-wrap: anywhere; }
+.dtools { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.chip { font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.dlist { position: relative; overflow-y: auto; min-height: 0; flex: 1 1 0; padding: 4px 0; }
+.dl { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 8px; align-items: start; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-left: 4px solid transparent; padding: 8px 12px 8px 6px; cursor: pointer; }
+.dl + .dl { border-top: 1px solid var(--soft); }
+.dl.sel { background: color-mix(in srgb, #1f6fe5 10%, transparent); border-left-color: #1f6fe5; }
+.dl.ok .dx b, .dl.fail .dx b { color: var(--muted); }
+.dl.ok .dt b { color: var(--ok); }
+.dl.fail .dt b { color: var(--warn); }
+.dt { display: flex; flex-direction: column; align-items: center; font-size: 13px; color: var(--muted); }
+.dt b { font: 600 15px/1.2 var(--font-mono); color: var(--ink); }
+.dx { display: flex; flex-direction: column; min-width: 0; }
+.dx b { font-weight: 600; font-size: 15px; }
+.dx span { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtag { font: 700 12px/1 var(--font-body); background: color-mix(in srgb, #1f6fe5 14%, transparent); color: #1f4fd1; border-radius: 6px; padding: 5px 7px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dcard { padding: 14px; display: flex; flex-direction: column; gap: 10px; max-height: 58%; overflow-y: auto; flex: none; }
+.dch { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.dch h2 { margin: 0; font: 700 24px/1.15 var(--font-display); overflow-wrap: anywhere; }
+.dclose { font: inherit; font-size: 18px; width: 36px; height: 36px; flex: none; border-radius: 50%; border: 0; background: var(--soft); color: var(--ink); cursor: pointer; }
+.dsub { color: var(--muted); font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #1f6fe5; display: inline-block; }
+.dot.ok { background: var(--ok); } .dot.fail { background: var(--warn); }
+.dacts { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 6px; }
+.dbtn { font: inherit; font-weight: 600; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; text-decoration: none; text-align: center; }
+.dbtn i { font-style: normal; font-size: 22px; line-height: 1; }
+.dbtn.nav { background: #1f6fe5; border-color: #1f6fe5; color: #fff; }
+.dbtn.ok i { color: var(--ok); } .dbtn.fail i { color: var(--warn); }
+.dfailform { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dfailform select { font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); flex: 1 1 180px; }
+.dlinks { display: flex; gap: 6px; flex-wrap: wrap; }
+.drow { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; align-items: start; border-top: 1px solid var(--soft); padding-top: 8px; font-size: 15px; overflow-wrap: anywhere; }
+.drow .ic { font-weight: 700; color: var(--muted); text-align: center; }
+.dmapwrap { position: relative; min-height: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+#dmap { position: absolute; inset: 0; }
+.dfab { position: absolute; right: 12px; bottom: 24px; z-index: 800; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--panel); color: #1f6fe5; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; }
+.dnextbar { position: absolute; left: 12px; bottom: 24px; right: 72px; z-index: 800; display: flex; }
+.dnextbar button { font: inherit; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--panel); color: var(--ink); border: 0; border-radius: 10px; padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; }
+.dnextbar b { color: #1f6fe5; margin-right: 6px; }
+.dgps { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 800; background: var(--sign); color: var(--sign-ink); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.dgps:empty { display: none; }
+.pin.d-stop { background: #fff; color: #1f4fd1; border-color: #1f6fe5; }
+.pin.d-target { background: #1f6fe5; color: #fff; width: 34px; height: 34px; font-size: 15px; border-radius: 8px; }
+.pin.d-done { background: #8a948f; opacity: .75; }
+.pin.d-fail { background: #c0392b; color: #fff; opacity: .85; }
+.pin.d-end { background: var(--ink); color: var(--panel); border-radius: 6px; }
+.medot { width: 18px; height: 18px; border-radius: 50%; background: #1f6fe5; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(31,111,229,.35), 0 1px 4px rgba(0,0,0,.4); transform: translate(-50%, -50%); }
+@media (max-width: 760px) {
+  .drive { display: flex; flex-direction: column; padding: 0; gap: 0; overflow-y: auto; }
+  .dmapwrap { order: -1; flex: none; height: 46vh; height: 46dvh; border-radius: 0; border: 0; position: sticky; top: 0; z-index: 1; }
+  .dpanel { padding: 8px; flex: none; }
+  .dcard { order: 1; max-height: none; }
+  .dlist { order: 2; flex: none; overflow: visible; }
+  .dch h2 { font-size: 22px; }
+}
 </style>
 
 <div class="wrap">
@@ -234,7 +298,7 @@ tr.next td.ord { color: var(--warn); }
   </div>
 
   <section class="nav" id="navBox" hidden>
-    <h3>Navegação</h3>
+    <div class="row" style="justify-content:space-between"><h3>Navegação</h3><button class="btn primary" id="driveBtn">▶ Abrir modo entrega</button></div>
     <p class="banner" id="savings" hidden></p>
     <div class="nextcard" id="nextCard"></div>
     <p class="hint">Rota completa no Google Maps, em trechos (o Google aceita até 10 paradas por link). Abra um trecho por vez.</p>
@@ -269,6 +333,29 @@ tr.next td.ord { color: var(--warn); }
   </section>
 
   <p class="foot">Localização de endereços: ViaCEP e OpenStreetMap (Nominatim). Tempos de trajeto: OSRM. Mapa: Esri. Nenhuma chave de API é necessária. Quando esses serviços não respondem, o app estima pela distância em linha reta.</p>
+</div>
+
+<div class="drive" id="drive" hidden>
+  <div class="dpanel">
+    <div class="dbox dhead">
+      <div class="dmeta" id="dMeta"></div>
+      <div class="dname" id="dName"></div>
+      <div class="dtools">
+        <button class="chip" id="dPlan">☰ Planilha e ajustes</button>
+        <button class="chip" id="dLoad">Nova planilha</button>
+        <button class="chip warn" id="dWarn" hidden></button>
+        <button class="chip" id="dCost">€ Custos e saldo</button>
+      </div>
+    </div>
+    <div class="dbox dlist" id="dList"></div>
+    <div class="dbox dcard" id="dCard"></div>
+  </div>
+  <div class="dmapwrap">
+    <div id="dmap"></div>
+    <div class="dgps" id="dGps"></div>
+    <div class="dnextbar" id="dNextBar"></div>
+    <button class="dfab" id="dLocate" title="Mostrar a minha posição" aria-label="Mostrar a minha posição">◎</button>
+  </div>
 </div>
 
 <button class="costbtn" id="costBtn" aria-controls="drawer" aria-expanded="false">€ Custos e saldo</button>
@@ -341,9 +428,12 @@ tr.next td.ord { color: var(--warn); }
   };
 
   const S = {
-    wb: null, headers: [], rows: [], map: {}, stops: [], start: null,
+    wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false,
     order: [], legs: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
+
+  // estado do modo entrega (ver mais abaixo)
+  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0 };
 
   // ---------- exemplo ----------
   const EXAMPLE = {
@@ -409,14 +499,15 @@ tr.next td.ord { color: var(--warn); }
   }
   function useSheet(sheetName, fileName) {
     const t = sheetToTable(S.wb.Sheets[sheetName]);
-    S.example = false; $("exampleBanner").hidden = true;
+    S.example = false; $("exampleBanner").hidden = true; S.fileName = fileName;
     loadTable(t.headers, t.rows);
     $("fileInfo").textContent = `${fileName}: ${S.rows.length} entregas, ${S.headers.length} colunas.`;
     S.order = []; S.fix = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
     log("Planilha carregada. Confira as colunas e toque em Calcular melhor rota.");
+    if (S.autoRun) { S.autoRun = false; S.openDrive = true; run(); }
   }
   const fileInput = $("file"), drop = $("drop");
-  fileInput.onchange = () => { const f = fileInput.files[0]; if (f) readFile(f); };
+  fileInput.onchange = () => { const f = fileInput.files[0]; if (f) readFile(f); fileInput.value = ""; };
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("over"));
   drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) readFile(f); });
@@ -672,11 +763,14 @@ tr.next td.ord { color: var(--warn); }
   function log(t) { $("log").textContent = t; }
   function prog(f) { $("prog").style.width = Math.round(f * 100) + "%"; }
 
-  $("runBtn").onclick = run;
+  $("runBtn").onclick = () => { S.openDrive = true; run(); };
   async function run() {
     const btn = $("runBtn"); btn.disabled = true; $("fails").innerHTML = "";
+    const wantDrive = S.openDrive; S.openDrive = false;
     try {
       if (!S.rows.length) { log("Carregue uma planilha primeiro."); return; }
+      // guarda a planilha para reabrir a rota se o app for fechado a meio do dia
+      if (!S.example) store.set("rota.sheet", { name: S.fileName, headers: S.headers, rows: S.rows, map: S.map });
       if (S.map.lat < 0 && S.map.coord < 0 && S.map.cep < 0 && S.map.end < 0) { log("Escolha pelo menos a coluna de CEP ou de endereço na etapa 2."); return; }
       const stops = S.rows.map(rowToStop);
       const need = stops.filter((s) => !isFinite(s.lat));
@@ -782,6 +876,7 @@ tr.next td.ord { color: var(--warn); }
       prog(1);
       log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${M.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
       renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
+      if (wantDrive) openDrive();
     } finally { btn.disabled = false; }
   }
 
@@ -953,6 +1048,7 @@ tr.next td.ord { color: var(--warn); }
   const doneKey = (s) => S.routeKey + "#" + s.id + "#" + s.i;
 
   function renderResult() {
+    if (DR.on) renderDrive();
     const has = S.order.length > 0;
     $("navBox").hidden = !has; $("listBox").hidden = !has;
     $("sStops").textContent = has ? S.order.length : S.rows.length;
@@ -1392,9 +1488,227 @@ tr.next td.ord { color: var(--warn); }
   const sm = store.get("rota.startMode", "addr"); const smEl = document.querySelector(`input[name=startMode][value=${sm}]`); if (smEl) smEl.checked = true;
   document.querySelectorAll("input[name=startMode]").forEach((r) => r.addEventListener("change", () => store.set("rota.startMode", r.value)));
 
-  // ---------- início com exemplo ----------
+  // ---------- modo entrega: mapa grande, lista com horas previstas e cartão da parada ----------
+  // O mapa mostra só o trecho da posição atual (GPS) até à próxima entrega. Ao marcar Entregue ou
+  // Não entregue passa ao trecho seguinte, sucessivamente, até ao destino final.
+  const SERVICE = 120; // segundos parado em cada entrega, para as horas previstas
+  const hhmm = (t) => new Date(t).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+  const pend = (s) => !stOf(s);
+  const stopTitle = (s) => { const x = s.items[0], n = doorOf(x), r = streetOf(x.end); return [r, n ? "nº " + n : ""].filter(Boolean).join(", ") || s.addr || s.nome || x.id; };
+  const roadSec = (a, b) => (hav(a, b) * 1.3 / 40) * 3600; // sem OSRM: 40 km/h e ruas 30% mais longas que a linha reta
+  function driveTarget() {
+    const v = S.order[DR.view];
+    if (v && pend(v)) return { i: DR.view, p: v };
+    const i = S.order.findIndex(pend);
+    if (i >= 0) return { i, p: S.order[i] };
+    return S.endPt ? { i: -1, p: S.endPt, end: true } : null;
+  }
+  // de onde parte o trecho: GPS, senão a última entrega marcada, senão o ponto de partida
+  function legOrigin(tg) {
+    if (DR.me && (!tg || hav(DR.me, tg.p) < 150)) return { p: DR.me, gps: true };
+    let last = null, lt = 0;
+    S.order.forEach((s) => { const t = stOf(s); if (t && t.t > lt) { lt = t.t; last = s; } });
+    if (last) return { p: last };
+    return S.start && !S.start.firstIsStart ? { p: S.start } : null;
+  }
+  const legKeyOf = (o, tg) => (tg.end ? "F" : tg.i) + "|" + (o ? (o.gps ? "gps" : ll(o.p)) : "");
+  async function driveLeg() {
+    const tg = driveTarget(), o = tg && legOrigin(tg);
+    if (!tg || !o || DR.legBusy) return;
+    const key = legKeyOf(o, tg);
+    const moved = o.gps && DR.legFrom && hav(DR.legFrom, o.p) * 1000 > 200;
+    if (DR.leg && DR.leg.key === key && !moved) return;
+    DR.legBusy = true;
+    const from = { lat: o.p.lat, lng: o.p.lng };
+    let leg = { key, geom: null, dur: roadSec(from, tg.p), dist: hav(from, tg.p) * 1300 };
+    try {
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng.toFixed(6)},${from.lat.toFixed(6)};${tg.p.lng.toFixed(6)},${tg.p.lat.toFixed(6)}?overview=full&geometries=geojson`, AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {});
+      const j = await res.json();
+      if (j.code === "Ok") { const r = j.routes[0]; leg = { key, geom: r.geometry.coordinates.map((c) => [c[1], c[0]]), dur: r.duration, dist: r.distance }; }
+    } catch (e) {}
+    DR.leg = leg; DR.legFrom = from; DR.legBusy = false;
+    renderDrive();
+  }
+  function driveEtas() {
+    const eta = new Array(S.order.length).fill(null);
+    const tg = driveTarget(); if (!tg) return { eta, end: null };
+    const o = legOrigin(tg);
+    let t = Date.now();
+    t += (DR.leg && DR.leg.key === legKeyOf(o, tg) ? DR.leg.dur : o ? roadSec(o.p, tg.p) : tg.i >= 0 ? S.legs[tg.i].dur : 0) * 1000;
+    if (tg.end) return { eta, end: t };
+    eta[tg.i] = t;
+    // as outras pendentes na ordem da rota, a seguir à parada alvo (as saltadas ficam para o fim)
+    const n = S.order.length, rest = S.order.map((_, i) => i).filter((i) => i !== tg.i && pend(S.order[i]));
+    rest.sort((a, b) => ((a - tg.i + n) % n) - ((b - tg.i + n) % n));
+    let prev = tg.i;
+    for (const i of rest) {
+      let d = 0;
+      if (i > prev) for (let j = prev + 1; j <= i; j++) d += S.legs[j].dur; else d = roadSec(S.order[prev], S.order[i]);
+      t += (SERVICE + d) * 1000; eta[i] = t; prev = i;
+    }
+    t += SERVICE * 1000;
+    if (S.endPt) t += (prev === n - 1 && S.endLeg ? S.endLeg.dur : roadSec(S.order[prev], S.endPt)) * 1000;
+    return { eta, end: t };
+  }
+  function nextAfter(i) {
+    const n = S.order.length;
+    for (let k = 1; k < n; k++) { const j = (i + k) % n; if (pend(S.order[j])) return j; }
+    return -1;
+  }
+  function openDrive() {
+    if (useSvg || !S.order.length || typeof L === "undefined") return;
+    DR.on = true; $("drive").hidden = false; document.body.classList.add("driving"); store.set("rota.drive", 1);
+    if (!DR.map) {
+      DR.map = L.map("dmap", { zoomControl: false }).setView([S.order[0].lat, S.order[0].lng], 13);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "© Esri, HERE, Garmin, OpenStreetMap" }).addTo(DR.map);
+      DR.layer = L.layerGroup().addTo(DR.map); DR.meLayer = L.layerGroup().addTo(DR.map);
+      DR.map.on("dragstart", () => { DR.follow = false; });
+    }
+    DR.view = -1; DR.fitKey = ""; DR.failing = false;
+    setTimeout(() => { DR.map.invalidateSize(); renderDrive(true); }, 60);
+    startGps(); renderDrive(true);
+  }
+  function closeDrive() {
+    DR.on = false; $("drive").hidden = true; document.body.classList.remove("driving"); store.set("rota.drive", 0);
+    if (DR.watch != null) { navigator.geolocation.clearWatch(DR.watch); DR.watch = null; }
+    setTimeout(() => { if (lmap) lmap.invalidateSize(); }, 60);
+  }
+  function startGps() {
+    if (!navigator.geolocation) { $("dGps").textContent = "Este aparelho não dá a localização."; return; }
+    if (DR.watch != null) return;
+    DR.watch = navigator.geolocation.watchPosition((p) => {
+      const first = !DR.me;
+      DR.me = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
+      $("dGps").textContent = "";
+      DR.meLayer.clearLayers();
+      L.circle([DR.me.lat, DR.me.lng], { radius: Math.min(DR.me.acc, 300), color: "#1f6fe5", weight: 1, fillOpacity: .1, interactive: false }).addTo(DR.meLayer);
+      L.marker([DR.me.lat, DR.me.lng], { interactive: false, zIndexOffset: 2000, icon: L.divIcon({ className: "", html: '<div class="medot"></div>', iconSize: [0, 0] }) }).addTo(DR.meLayer);
+      if (DR.follow) DR.map.panTo([DR.me.lat, DR.me.lng], { animate: true });
+      if (first || Date.now() - (DR.lastDraw || 0) > 15000) { if (first) DR.fitKey = ""; renderDrive(); }
+    }, () => { $("dGps").textContent = "Sem localização: autorize a localização ao app para ver onde está e o trecho a partir daí."; },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+  }
+  function renderDrive(fit) {
+    if (!DR.on) return;
+    if (!S.order.length) { closeDrive(); return; }
+    DR.lastDraw = Date.now();
+    driveLeg();
+    const tg = driveTarget(), tk = tg ? String(tg.end ? "F" : tg.i) : "";
+    if (fit === undefined) fit = DR.fitKey !== tk;
+    if (fit) DR.follow = false;
+    DR.fitKey = tk;
+    const { eta, end } = driveEtas();
+    const okN = S.order.filter((s) => stOf(s)?.st === "ok").length, failN = S.order.filter((s) => stOf(s)?.st === "fail").length, N = S.order.length;
+    $("dMeta").textContent = `${end ? "Término: " + hhmm(end) + " · " : ""}${N} paradas · ${fmtKm(S.totDist)} km · ${okN} entregue(s)${failN ? ", " + failN + " não" : ""}`;
+    $("dName").textContent = S.example ? "Exemplo (não é a sua planilha)" : (S.fileName || "Rota").replace(/\.(xlsx|xls|csv)$/i, "");
+    const errs = errorRows().length; $("dWarn").hidden = !errs; $("dWarn").textContent = `⚠ ${errs} aviso(s) de morada`;
+
+    // lista
+    const vi = DR.view >= 0 ? DR.view : tg && !tg.end ? tg.i : -1;
+    const row = (cls, num, time, title, sub, tag, i) => `<button class="dl ${cls}${i != null && i === vi ? " sel" : ""}"${i != null ? ` data-i="${i}"` : ""}><div class="dt"><b>${num}</b><span>${time}</span></div><div class="dx"><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</div>${tag ? `<span class="dtag">${esc(tag)}</span>` : "<span></span>"}</button>`;
+    let html = S.start.firstIsStart ? "" : row("", "●", "", "Ponto de partida", S.start.label || "", "", null);
+    html += S.order.map((s, i) => {
+      const t = stOf(s), cep = s.cep ? fmtCep(s.cep) : "";
+      return row(t ? t.st : "", String(i + 1).padStart(2, "0"), t ? (t.st === "ok" ? "✓ " : "✗ ") + hhmm(t.t) : eta[i] ? hhmm(eta[i]) : "", stopTitle(s), [cep, s.nome, s.items.length > 1 ? s.items.length + " volumes" : ""].filter(Boolean).join(" · "), "VDC " + s.items.map((x) => x.id).join(", "), i);
+    }).join("");
+    if (S.endPt && !S.roundTrip) html += row(tg && tg.end ? "sel" : "", "F", end ? hhmm(end) : "", "Destino final", S.endPt.label || "", "", null);
+    $("dList").innerHTML = html;
+    $("dList").querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => { DR.view = +b.dataset.i; DR.failing = false; renderDrive(); focusStop(S.order[DR.view]); }));
+    // no computador a lista rola sozinha até à parada; no telemóvel volta ao topo para ver o cartão
+    const sel = $("dList").querySelector(".sel"), lst = $("dList");
+    if (fit && lst.scrollHeight > lst.clientHeight + 4) { if (sel) lst.scrollTop = sel.offsetTop - lst.clientHeight / 3; }
+    else if (fit) $("drive").scrollTop = 0;
+
+    // cartão da parada
+    const card = $("dCard");
+    if (vi < 0) {
+      card.innerHTML = S.endPt
+        ? `<div class="dch"><h2>Destino final</h2></div><div class="dsub"><span class="dot"></span>${esc(S.endPt.label || "")}${end ? " · chegada " + hhmm(end) : ""}</div>
+          <p class="hint">Todas as paradas confirmadas: ${okN} entregue(s), ${failN} não entregue(s).</p>
+          <div class="dacts"><a class="dbtn nav" target="_blank" rel="noopener" href="${gmapsOne(S.endPt)}"><i>➤</i>Navegar</a><a class="dbtn" target="_blank" rel="noopener" href="${wazeUrl(S.endPt)}"><i>W</i>Waze</a><button class="dbtn" id="dSaveDay"><i>€</i>Guardar o dia</button></div>`
+        : `<div class="dch"><h2>Rota terminada</h2></div><p class="hint">${okN} entregue(s), ${failN} não entregue(s).</p><div class="dacts"><button class="dbtn" id="dSaveDay"><i>€</i>Guardar o dia</button></div>`;
+      $("dSaveDay").onclick = () => setDrawer(true);
+    } else {
+      const s = S.order[vi], t = stOf(s), x = s.items[0], isT = tg && tg.i === vi;
+      const leg = isT && DR.leg && DR.leg.key === legKeyOf(legOrigin(tg), tg) ? DR.leg : null;
+      card.innerHTML = `<div class="dch"><h2>${esc(stopTitle(s))}</h2>${DR.view >= 0 ? '<button class="dclose" id="dClose" aria-label="Fechar">✕</button>' : ""}</div>
+        <div class="dsub"><span class="dot ${t ? t.st : ""}"></span>${vi + 1}/${N} · ${t ? statusBadge(s) + " " + hhmm(t.t) : (eta[vi] ? "previsto " + hhmm(eta[vi]) : "")}${leg ? ` · ${fmtMin(leg.dur)} · ${fmtKm(leg.dist)} km` : ""}</div>
+        <div class="dacts">
+          <a class="dbtn nav" target="_blank" rel="noopener" href="${gmapsOne(s)}"><i>➤</i>Navegar</a>
+          <button class="dbtn" id="dNext"><i>⇥</i>Próxima</button>
+          ${t ? `<button class="dbtn" id="dUndo" style="grid-column:span 2"><i>↺</i>Desfazer</button>` : `<button class="dbtn fail" id="dFail"><i>✗</i>Não entregue</button><button class="dbtn ok" id="dOk"><i>✓</i>Entregue</button>`}
+        </div>
+        ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
+        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button></div>
+        <div class="drow"><span class="ic">📦</span><div><b>VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
+        <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
+        <div class="drow"><span class="ic">ID</span><div>${s.items.map((y) => esc(y.codigo || y.id)).join("<br>")}<br><span class="hint">Linha ${s.items.map((y) => y.i + 2).join(", ")} da planilha</span></div></div>
+        ${s.obs ? `<div class="drow"><span class="ic">ℹ</span><div>${esc(s.obs)}</div></div>` : ""}`;
+      const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(); };
+      $("dNext").onclick = () => { const j = nextAfter(vi); if (j >= 0) { DR.view = j; DR.failing = false; renderDrive(); focusStop(S.order[j]); } };
+      $("dDoor").onclick = () => { DR.follow = false; DR.map.setView([s.lat, s.lng], 18); };
+      if (t) $("dUndo").onclick = () => { DR.view = vi; setStatus(s, null); };
+      else {
+        $("dOk").onclick = () => { DR.view = -1; DR.failing = false; setStatus(s, "ok"); };
+        $("dFail").onclick = () => { DR.failing = true; renderDrive(); };
+        if (DR.failing) {
+          $("dFailOk").onclick = () => { const m = $("dMotivo").value; DR.view = -1; DR.failing = false; setStatus(s, "fail", m); };
+          $("dFailNo").onclick = () => { DR.failing = false; renderDrive(); };
+        }
+      }
+    }
+
+    // barra com a parada seguinte
+    const nx = tg && !tg.end ? nextAfter(tg.i) : -1;
+    $("dNextBar").innerHTML = nx >= 0 ? `<button id="dNextGo"><b>› ${nx + 1}</b>${esc(stopTitle(S.order[nx]))}</button>` : "";
+    if (nx >= 0) $("dNextGo").onclick = () => { DR.view = nx; DR.failing = false; renderDrive(); focusStop(S.order[nx]); };
+    drawDrive(tg, fit);
+  }
+  function focusStop(s) { if (DR.map && s) { DR.follow = false; DR.map.setView([s.lat, s.lng], Math.max(DR.map.getZoom(), 15)); } }
+  function drawDrive(tg, fit) {
+    if (!DR.map) return;
+    DR.layer.clearLayers();
+    const o = tg && legOrigin(tg);
+    if (tg && o) {
+      const g = DR.leg && DR.leg.key === legKeyOf(o, tg) && DR.leg.geom;
+      L.polyline(g || [[o.p.lat, o.p.lng], [tg.p.lat, tg.p.lng]], { color: "#1f6fe5", weight: 6, opacity: .85, dashArray: g ? null : "8 10" }).addTo(DR.layer);
+    }
+    const pin = (p, cls, label, tags, z, onClick) => {
+      const m = L.marker([p.lat, p.lng], { zIndexOffset: z, icon: L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${cls}">${label}</div>${tags || ""}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(DR.layer);
+      if (onClick) m.on("click", onClick);
+    };
+    if (!S.start.firstIsStart) pin(S.start, "d-end", "P", "", -200);
+    if (S.endPt && !S.roundTrip) pin(S.endPt, "d-end", "F", tg && tg.end ? `<div class="tags"><span class="door">Destino final</span></div>` : "", tg && tg.end ? 1000 : -200);
+    S.order.forEach((s, i) => {
+      const t = stOf(s), isT = tg && tg.i === i;
+      const tags = isT ? `<div class="tags"><span class="vdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</span><span class="door">${esc(stopTitle(s))}</span></div>` : "";
+      pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(); });
+    });
+    if (fit && tg) {
+      const b = L.latLngBounds([[tg.p.lat, tg.p.lng]]); if (o) b.extend([o.p.lat, o.p.lng]);
+      DR.map.fitBounds(b, { padding: [60, 60], maxZoom: 16 });
+    }
+  }
+  $("dPlan").onclick = closeDrive;
+  $("dCost").onclick = () => setDrawer(true);
+  $("dLoad").onclick = () => { S.autoRun = true; $("file").click(); };
+  $("dWarn").onclick = () => { closeDrive(); setTimeout(() => $("checkBox").scrollIntoView({ behavior: "smooth" }), 80); };
+  $("dLocate").onclick = () => {
+    if (DR.me) { DR.follow = true; DR.map.setView([DR.me.lat, DR.me.lng], Math.max(DR.map.getZoom(), 16)); }
+    else { startGps(); renderDrive(true); }
+  };
+  $("driveBtn").onclick = openDrive;
+
+  // ---------- início: última planilha usada neste aparelho, ou o exemplo ----------
   initMap();
-  loadTable(EXAMPLE.headers, EXAMPLE.rows.map((r) => r.slice()));
+  const savedSheet = store.get("rota.sheet", null);
+  if (savedSheet && savedSheet.rows && savedSheet.rows.length) {
+    S.example = false; $("exampleBanner").hidden = true; S.fileName = savedSheet.name;
+    loadTable(savedSheet.headers, savedSheet.rows);
+    if (savedSheet.map) { S.map = { ...S.map, ...savedSheet.map }; renderMapRows(); }
+    $("fileInfo").textContent = `${savedSheet.name || "Planilha"}: ${S.rows.length} entregas (a última usada neste aparelho).`;
+    S.openDrive = store.get("rota.drive", 1) === 1;
+  } else loadTable(EXAMPLE.headers, EXAMPLE.rows.map((r) => r.slice()));
   run();
 })();
 </script>

@@ -1,5 +1,5 @@
 // Guarda o app no telemóvel para abrir rápido; mapas, rotas (OSRM) e moradas continuam pela internet.
-const CACHE = "roteirizador-v15";
+const CACHE = "roteirizador-v16";
 const APP = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
