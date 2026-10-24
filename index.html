@@ -343,6 +343,7 @@ body.driving .costbtn { display: none; }
         <button class="btn small" id="exportBtn">Baixar planilha ordenada</button>
       </div>
     </div>
+    <p class="hint" id="exclInfo" hidden></p>
     <div class="tablewrap"><table>
       <thead><tr><th>#</th><th>Etiqueta</th><th>Destinatário / endereço</th><th>Trecho</th><th>Ações</th></tr></thead>
       <tbody id="tbody"></tbody>
@@ -361,6 +362,7 @@ body.driving .costbtn { display: none; }
         <button class="chip" id="dPlan">☰ Planilha e ajustes</button>
         <button class="chip" id="dLoad">Nova planilha</button>
         <button class="chip warn" id="dWarn" hidden></button>
+        <button class="chip" id="dUnexcl" hidden></button>
         <button class="chip" id="dCost">€ Custos e saldo</button>
       </div>
     </div>
@@ -449,7 +451,7 @@ body.driving .costbtn { display: none; }
   };
 
   const S = {
-    wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false,
+    wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false, excl: store.get("rota.excl", {}), excluded: [],
     order: [], legs: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
 
@@ -520,7 +522,7 @@ body.driving .costbtn { display: none; }
   }
   function useSheet(sheetName, fileName) {
     const t = sheetToTable(S.wb.Sheets[sheetName]);
-    S.example = false; $("exampleBanner").hidden = true; S.fileName = fileName;
+    S.example = false; $("exampleBanner").hidden = true; S.fileName = fileName; S.excl = {}; store.set("rota.excl", S.excl);
     loadTable(t.headers, t.rows);
     $("fileInfo").textContent = `${fileName}: ${S.rows.length} entregas, ${S.headers.length} colunas.`;
     S.order = []; S.fix = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
@@ -816,12 +818,21 @@ body.driving .costbtn { display: none; }
         const key = s.lat.toFixed(5) + "," + s.lng.toFixed(5);
         if (groups.has(key)) groups.get(key).items.push(s); else { s.items = [s]; groups.set(key, s); }
       }
-      const ok = [...groups.values()];
-      ok.forEach((g) => { if (g.items.length > 1) { g.ids = g.items.map((x) => x.id); } });
+      const allG = [...groups.values()];
+      // a chave da rota usa todas as paradas, para as confirmações não se perderem ao excluir pacotes
+      S.routeKey = hash(allG.map((s) => s.id).sort().join("|"));
+      // pacotes excluídos à mão saem da rota; a parada some quando todos os seus volumes saem
+      S.excluded = []; const ok = [];
+      allG.forEach((g) => {
+        const keep = g.items.filter((x) => !S.excl[x.pk]);
+        g.items.filter((x) => S.excl[x.pk]).forEach((x) => S.excluded.push(x));
+        if (!keep.length) return;
+        const h = keep[0]; h.items = keep; h.ids = keep.length > 1 ? keep.map((x) => x.id) : undefined; ok.push(h);
+      });
       const nVol = ok.reduce((a, g) => a + g.items.length, 0);
       const bad = stops.filter((s) => !isFinite(s.lat));
       renderFails(bad);
-      if (!ok.length) { log("Nenhuma entrega foi localizada. Confira as colunas de CEP e endereço."); prog(0); return; }
+      if (!ok.length) { log(S.excluded.length ? "Todos os pacotes foram excluídos. Toque em Repor excluídos." : "Nenhuma entrega foi localizada. Confira as colunas de CEP e endereço."); prog(0); S.order = []; renderResult(); clearMap(); return; }
 
       log("Localizando o início e o fim da rota…"); S.netErr = false;
       let start = await resolveStart();
@@ -862,40 +873,50 @@ body.driving .costbtn { display: none; }
       const roundTrip = endMode === "back" && !start.free;
 
       log("Calculando tempos entre as entregas…"); prog(0.92);
-      // nós da matriz: 0 = partida (ou nó neutro), 1..n = paradas, n+1 = ponto final
-      const real = (start.free ? [] : [start]).concat(ok, endPt ? [endPt] : []);
-      let M = await buildMatrix(real);
-      if (start.free) {
-        const pad = (X) => [new Array(real.length + 1).fill(0)].concat(X.map((r) => [0].concat(r)));
-        M = { dur: pad(M.dur), dist: pad(M.dist), source: M.source };
+      // as paradas já entregues (ou não entregues) ficam no início, pela ordem em que foram marcadas;
+      // só as que faltam são otimizadas, a partir da última marcada
+      const doneG = ok.filter((g) => stOf(g)).sort((a, b) => stOf(a).t - stOf(b).t), todo = ok.filter((g) => !stOf(g));
+      const from = doneG.length ? doneG[doneG.length - 1] : start.free ? null : start;
+      const endNode = endPt || (roundTrip ? start : null);
+      const est = (a, b) => { const d = hav(a, b); return { dur: (d * 1.3 / 40) * 3600, dist: d * 1300 }; };
+      // nós da matriz: 0 = de onde parte (ou nó neutro), 1..n = paradas por fazer, n+1 = ponto final
+      let M = null, orderIdx = [], fixedEnd = -1;
+      if (todo.length) {
+        const real = (from ? [from] : []).concat(todo, endNode ? [endNode] : []);
+        M = await buildMatrix(real);
+        if (!from) {
+          const pad = (X) => [new Array(real.length + 1).fill(0)].concat(X.map((r) => [0].concat(r)));
+          M = { dur: pad(M.dur), dist: pad(M.dist), source: M.source };
+        }
+        fixedEnd = endNode ? todo.length + 1 : -1;
+        orderIdx = optimize(M.dur, fixedEnd);
       }
-      const fixedEnd = endPt ? ok.length + 1 : roundTrip ? 0 : -1;
-      const orderIdx = optimize(M.dur, fixedEnd);
-      S.order = orderIdx.map((i) => ok[i - 1]);
+      S.order = doneG.concat(orderIdx.map((i) => todo[i - 1]));
       if (start.free) { start.lat = S.order[0].lat; start.lng = S.order[0].lng; }
-      S.start = start; S.stops = ok; S.source = M.source;
-      S.endPt = endPt || (roundTrip ? start : null); S.roundTrip = roundTrip;
+      S.start = start; S.stops = ok; S.source = M ? M.source : S.source;
+      S.endPt = endNode; S.roundTrip = roundTrip;
 
       // pernas: tempo e distância até cada entrega, na ordem
       const full = [0].concat(orderIdx);
-      let tDur = 0, tDist = 0;
-      S.legs = S.order.map((_, i) => {
-        const a = full[i], b = full[i + 1]; tDur += M.dur[a][b]; tDist += M.dist[a][b];
-        return { dur: M.dur[a][b], dist: M.dist[a][b] };
-      });
-      if (fixedEnd >= 0) { const a = full[full.length - 1]; S.endLeg = { dur: M.dur[a][fixedEnd], dist: M.dist[a][fixedEnd] }; tDur += S.endLeg.dur; tDist += S.endLeg.dist; } else S.endLeg = null;
+      S.legs = doneG.map((g, i) => (i ? est(doneG[i - 1], g) : start.free ? { dur: 0, dist: 0 } : est(start, g)))
+        .concat(orderIdx.map((_, k) => ({ dur: M.dur[full[k]][full[k + 1]], dist: M.dist[full[k]][full[k + 1]] })));
+      if (endNode) S.endLeg = fixedEnd >= 0 ? { dur: M.dur[full[full.length - 1]][fixedEnd], dist: M.dist[full[full.length - 1]][fixedEnd] } : est(S.order[S.order.length - 1], endNode);
+      else S.endLeg = null;
+      const tDur = S.legs.reduce((a, l) => a + l.dur, 0) + (S.endLeg ? S.endLeg.dur : 0), tDist = S.legs.reduce((a, l) => a + l.dist, 0) + (S.endLeg ? S.endLeg.dist : 0);
       S.totDur = tDur; S.totDist = tDist;
-      // comparação com a ordem original (pela etiqueta numérica, ou pela ordem das linhas)
-      const keyOf = (g) => Math.min(...g.items.map((x) => (/^\d+$/.test(x.id) ? +x.id : 1e9 + x.i)));
-      const origFull = [0].concat(ok.map((g, k) => [g, k + 1]).sort((a, b) => keyOf(a[0]) - keyOf(b[0])).map((x) => x[1]));
-      if (fixedEnd >= 0) origFull.push(fixedEnd);
-      let oDur = 0, oDist = 0;
-      for (let i = 1; i < origFull.length; i++) { oDur += M.dur[origFull[i - 1]][origFull[i]]; oDist += M.dist[origFull[i - 1]][origFull[i]]; }
-      S.cmp = { dur: oDur - tDur, dist: oDist - tDist };
+      // comparação com a ordem original (pela etiqueta numérica, ou pela ordem das linhas), só antes de começar
+      S.cmp = null;
+      if (M && !doneG.length) {
+        const keyOf = (g) => Math.min(...g.items.map((x) => (/^\d+$/.test(x.id) ? +x.id : 1e9 + x.i)));
+        const origFull = [0].concat(todo.map((g, k) => [g, k + 1]).sort((a, b) => keyOf(a[0]) - keyOf(b[0])).map((x) => x[1]));
+        if (fixedEnd >= 0) origFull.push(fixedEnd);
+        let oDur = 0, oDist = 0;
+        for (let i = 1; i < origFull.length; i++) { oDur += M.dur[origFull[i - 1]][origFull[i]]; oDist += M.dist[origFull[i - 1]][origFull[i]]; }
+        S.cmp = { dur: oDur - tDur, dist: oDist - tDist };
+      }
       S.nVol = nVol;
-      S.routeKey = hash(S.order.map((s) => s.id).sort().join("|"));
       prog(1);
-      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${M.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
+      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
       renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
       if (wantDrive) openDrive();
     } finally { btn.disabled = false; }
@@ -1077,6 +1098,10 @@ body.driving .costbtn { display: none; }
     $("savings").hidden = !has || !S.cmp || S.cmp.dur < 60;
     if (has && S.cmp) $("savings").textContent = `Comparado com a ordem da planilha, esta rota economiza cerca de ${fmtMin(S.cmp.dur)} e ${fmtKm(S.cmp.dist)} km.`;
     $("sKm").textContent = has ? fmtKm(S.totDist) : "0";
+    const ex = S.excluded || [];
+    $("exclInfo").hidden = !ex.length;
+    $("exclInfo").innerHTML = ex.length ? `${ex.length} pacote(s) excluído(s) da rota: ${ex.map((x) => "<span class=\"cx\">" + esc(x.id) + "</span>").join(" ")} <button class="btn small" id="unExcl">Repor excluídos</button>` : "";
+    if (ex.length) $("unExcl").onclick = restoreExcluded;
     $("sTime").textContent = has ? fmtMin(S.totDur) : "0";
     renderCheck();
     if (typeof updateCost === "function" && $("calcBox")) try { updateCost(); } catch (e) {}
@@ -1133,9 +1158,11 @@ body.driving .costbtn { display: none; }
           ${useSvg ? "" : `<button class="btn small" data-zoom="${i}">Ver porta</button>`}
           <a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a>
           <span class="row" data-acts="${i}">${stt ? `<button class="btn small" data-undo="${i}">Desfazer</button>` : `<button class="btn small okbtn" data-ok="${i}">✓ Entregue</button><button class="btn small failbtn" data-fail="${i}">✗ Não entregue</button>`}</span>
+          <button class="btn small" data-del="${i}">🗑 Excluir</button>
         </div></td></tr>`;
     }).join("");
     $("tbody").querySelectorAll("[data-ok]").forEach((b) => (b.onclick = () => setStatus(S.order[+b.dataset.ok], "ok")));
+    $("tbody").querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) excludeItems(S.order[+b.dataset.del].items); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } }));
     $("tbody").querySelectorAll("[data-undo]").forEach((b) => (b.onclick = () => setStatus(S.order[+b.dataset.undo], null)));
     $("tbody").querySelectorAll("[data-fail]").forEach((b) => (b.onclick = () => askFail(S.order[+b.dataset.fail], b.parentNode)));
     $("tbody").querySelectorAll("[data-zoom]").forEach((b) => (b.onclick = () => {
@@ -1642,6 +1669,7 @@ body.driving .costbtn { display: none; }
     const okN = S.order.filter((s) => stOf(s)?.st === "ok").length, failN = S.order.filter((s) => stOf(s)?.st === "fail").length, N = S.order.length;
     $("dMeta").textContent = `${end ? "Término: " + hhmm(end) + " · " : ""}${N} paradas · ${fmtKm(S.totDist)} km · ${okN} entregue(s)${failN ? ", " + failN + " não" : ""}`;
     $("dName").textContent = S.example ? "Exemplo (não é a sua planilha)" : (S.fileName || "Rota").replace(/\.(xlsx|xls|csv)$/i, "");
+    const nEx = (S.excluded || []).length; $("dUnexcl").hidden = !nEx; $("dUnexcl").textContent = `↺ Repor ${nEx} excluído(s)`;
     const errs = errorRows().length; $("dWarn").hidden = !errs; $("dWarn").textContent = `⚠ ${errs} aviso(s) de morada`;
 
     // lista
@@ -1681,14 +1709,16 @@ body.driving .costbtn { display: none; }
           ${t ? `<button class="dbtn" id="dUndo" style="grid-column:span 2"><i>↺</i>Desfazer</button>` : `<button class="dbtn fail" id="dFail"><i>✗</i>Não entregue</button><button class="dbtn ok" id="dOk"><i>✓</i>Entregue</button>`}
         </div>
         ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
-        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button></div>
-        <div class="drow"><span class="ic">📦</span><div><b>VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
+        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
+        <div class="drow"><span class="ic">📦</span><div><b>VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes<br>${s.items.map((y, k) => `<button class="btn small" data-delv="${k}">🗑 Excluir só VDC ${esc(y.id)}</button>`).join(" ")}` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
         <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
         <div class="drow"><span class="ic">ID</span><div>${s.items.map((y) => esc(y.codigo || y.id)).join("<br>")}<br><span class="hint">Linha ${s.items.map((y) => y.i + 2).join(", ")} da planilha</span></div></div>
         ${s.obs ? `<div class="drow"><span class="ic">ℹ</span><div>${esc(s.obs)}</div></div>` : ""}`;
       const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(); };
       $("dNext").onclick = () => { const j = nextAfter(vi); if (j >= 0) { DR.view = j; DR.failing = false; renderDrive(); focusStop(S.order[j]); } };
       const go = $("dGo"); if (go) go.onclick = () => { DR.view = vi; if (DR.nav) renderDrive(false); else startNav(); };
+      $("dDel").onclick = () => { const b = $("dDel"); if (b.dataset.sure) excludeItems(s.items); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } };
+      $("dCard").querySelectorAll("[data-delv]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) excludeItems([s.items[+b.dataset.delv]]); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } }));
       $("dDoor").onclick = () => { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat], zoom: 18 }); };
       if (t) $("dUndo").onclick = () => { DR.view = vi; setStatus(s, null); };
       else {
@@ -1776,6 +1806,20 @@ body.driving .costbtn { display: none; }
     }
   }
   $("dPlan").onclick = closeDrive;
+  $("dUnexcl").onclick = () => restoreExcluded();
+  // excluir pacotes: saem da rota e o resto é otimizado de novo (as entregas já marcadas ficam)
+  function excludeItems(items) {
+    items.forEach((x) => { S.excl[x.pk] = 1; });
+    store.set("rota.excl", S.excl);
+    DR.view = -1; DR.failing = false; DR.leg = null;
+    if (DR.on) { $("dMeta").textContent = "A recalcular a rota sem " + (items.length > 1 ? items.length + " pacotes" : "o pacote VDC " + items[0].id) + "…"; S.openDrive = true; }
+    run();
+  }
+  function restoreExcluded() {
+    S.excl = {}; store.set("rota.excl", S.excl);
+    DR.view = -1; DR.leg = null; if (DR.on) { $("dMeta").textContent = "A recalcular a rota com todos os pacotes…"; S.openDrive = true; }
+    run();
+  }
   $("dCost").onclick = () => setDrawer(true);
   $("dLoad").onclick = () => { S.autoRun = true; $("file").click(); };
   $("dWarn").onclick = () => { closeDrive(); setTimeout(() => $("checkBox").scrollIntoView({ behavior: "smooth" }), 80); };
