@@ -1,9 +1,11 @@
 // Guarda o app no telemóvel para abrir rápido; mapas, rotas (OSRM) e moradas continuam pela internet.
-const CACHE = "roteirizador-v18";
+const CACHE = "roteirizador-v19";
 const APP = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js",
+  "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js",
+  "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css",
 ];
 
 self.addEventListener("install", (e) => {
@@ -28,7 +30,7 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   // bibliotecas e fontes: usa a guardada
-  if (url.hostname === "cdnjs.cloudflare.com" || url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
+  if (url.hostname === "cdnjs.cloudflare.com" || url.hostname === "cdn.jsdelivr.net" || url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
     e.respondWith(caches.match(req).then((r) => r || fetch(req).then((res) => {
       if (res.ok || res.type === "opaque") { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;

@@ -226,9 +226,10 @@ body.driving .costbtn { display: none; }
 .ninfo b { font: 700 22px/1.1 var(--font-display); color: var(--ok); }
 .ninfo span { font-size: 13px; color: var(--muted); }
 .navmode .dnextbar, .navmode .dgps { display: none; }
-.mearrow { width: 30px; height: 30px; }
+.mearrow { width: 38px; height: 38px; display: block; filter: drop-shadow(0 1px 3px rgba(0,0,0,.45)); }
+#dmap .maplibregl-ctrl-attrib { font-size: 11px; }
 @media (max-width: 760px) { .drive.navmode .dmapwrap { height: 74vh; height: 74dvh; } }
-.medot { width: 18px; height: 18px; border-radius: 50%; background: #1f6fe5; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(31,111,229,.35), 0 1px 4px rgba(0,0,0,.4); transform: translate(-50%, -50%); }
+.medot { width: 18px; height: 18px; border-radius: 50%; background: #1f6fe5; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(31,111,229,.35), 0 1px 4px rgba(0,0,0,.4); }
 @media (max-width: 760px) {
   .drive { display: flex; flex-direction: column; padding: 0; gap: 0; overflow-y: auto; }
   .dmapwrap { order: -1; flex: none; height: 46vh; height: 46dvh; border-radius: 0; border: 0; position: sticky; top: 0; z-index: 1; }
@@ -415,6 +416,8 @@ body.driving .costbtn { display: none; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script id="app">
 (function () {
   "use strict";
@@ -451,7 +454,7 @@ body.driving .costbtn { display: none; }
   };
 
   // estado do modo entrega (ver mais abaixo)
-  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0, nav: false, voice: store.get("rota.voz", 1) === 1, lock: null, offN: 0, offRoute: false };
+  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0, nav: false, voice: store.get("rota.voz", 1) === 1, lock: null, offN: 0, offRoute: false, northUp: store.get("rota.norte", 0) === 1, ready: false };
 
   // ---------- exemplo ----------
   const EXAMPLE = {
@@ -1237,7 +1240,7 @@ body.driving .costbtn { display: none; }
   // cópia limpa da página (sem scripts do visualizador) para abrir fora do Claude
   async function downloadApp() {
     const doc = new DOMParser().parseFromString(PRISTINE, "text/html");
-    doc.querySelectorAll("script").forEach((el) => { if (el.id !== "app" && !/^https:\/\/cdnjs\.cloudflare\.com\//.test(el.getAttribute("src") || "")) el.remove(); });
+    doc.querySelectorAll("script").forEach((el) => { if (el.id !== "app" && !/^https:\/\/(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)\//.test(el.getAttribute("src") || "")) el.remove(); });
     doc.querySelectorAll("meta[http-equiv]").forEach((el) => el.remove());
     const html = "<!doctype html>\n" + doc.documentElement.outerHTML;
     try {
@@ -1576,17 +1579,30 @@ body.driving .costbtn { display: none; }
     for (let k = 1; k < n; k++) { const j = (i + k) % n; if (pend(S.order[j])) return j; }
     return -1;
   }
+  // mapa do modo entrega em MapLibre: roda e inclina para a navegação (mesmos mapas Esri, sem chave)
+  const lineFeat = (pts) => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: pts.map((q) => [q[1], q[0]]) } });
+  const bearing = (a, b) => { const r = Math.PI / 180, y = Math.sin((b.lng - a.lng) * r) * Math.cos(b.lat * r), x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lng - a.lng) * r); return (Math.atan2(y, x) / r + 360) % 360; };
   function openDrive() {
-    if (useSvg || !S.order.length || typeof L === "undefined") return;
+    if (useSvg || !S.order.length) return;
+    if (typeof maplibregl === "undefined") { log("Não consegui carregar o mapa de navegação. Verifique a internet e abra o app de novo."); return; }
     DR.on = true; $("drive").hidden = false; document.body.classList.add("driving"); store.set("rota.drive", 1);
     if (!DR.map) {
-      DR.map = L.map("dmap", { zoomControl: false }).setView([S.order[0].lat, S.order[0].lng], 13);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "© Esri, HERE, Garmin, OpenStreetMap" }).addTo(DR.map);
-      DR.layer = L.layerGroup().addTo(DR.map); DR.meLayer = L.layerGroup().addTo(DR.map);
+      DR.map = new maplibregl.Map({
+        container: "dmap", center: [S.order[0].lng, S.order[0].lat], zoom: 13, attributionControl: { compact: true },
+        style: { version: 8, sources: { esri: { type: "raster", tileSize: 256, maxzoom: 19, attribution: "© Esri, HERE, Garmin, OpenStreetMap", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"] } }, layers: [{ id: "esri", type: "raster", source: "esri" }] },
+      });
+      DR.marks = [];
+      DR.map.on("load", () => {
+        const empty = lineFeat([]), round = { "line-join": "round", "line-cap": "round" };
+        DR.map.addSource("full", { type: "geojson", data: empty }); DR.map.addSource("leg", { type: "geojson", data: empty });
+        DR.map.addLayer({ id: "full", type: "line", source: "full", layout: round, paint: { "line-color": "#7da7e8", "line-width": 5, "line-opacity": 0.6 } });
+        DR.map.addLayer({ id: "leg", type: "line", source: "leg", layout: round, paint: { "line-color": "#1f6fe5", "line-width": 7, "line-opacity": 0.9 } });
+        DR.ready = true; renderDrive(true);
+      });
       DR.map.on("dragstart", () => { DR.follow = false; });
     }
     DR.view = -1; DR.fitKey = ""; DR.failing = false;
-    setTimeout(() => { DR.map.invalidateSize(); renderDrive(true); }, 60);
+    setTimeout(() => { DR.map.resize(); renderDrive(true); }, 60);
     startGps(); renderDrive(true);
   }
   function closeDrive() {
@@ -1599,18 +1615,16 @@ body.driving .costbtn { display: none; }
     if (!navigator.geolocation) { $("dGps").textContent = "Este aparelho não dá a localização."; return; }
     if (DR.watch != null) return;
     DR.watch = navigator.geolocation.watchPosition((p) => {
-      const first = !DR.me;
-      DR.me = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
+      const first = !DR.me, fix = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
+      // direção: a da bússola do GPS quando o carro anda; senão a do movimento entre leituras
+      const h = p.coords.heading;
+      DR.fast = typeof h === "number" && isFinite(h) && (p.coords.speed || 0) > 1.5;
+      if (DR.fast) DR.gpsHead = h; else if (DR.me && hav(DR.me, fix) * 1000 > 5) DR.heading = bearing(DR.me, fix);
+      DR.me = fix;
       $("dGps").textContent = "";
-      DR.meLayer.clearLayers();
-      L.circle([DR.me.lat, DR.me.lng], { radius: Math.min(DR.me.acc, 300), color: "#1f6fe5", weight: 1, fillOpacity: .1, interactive: false }).addTo(DR.meLayer);
-      // a andar, o ponto vira uma seta na direção do movimento
-      const h = p.coords.heading, moving = typeof h === "number" && isFinite(h) && (p.coords.speed || 0) > 1;
-      const me = moving ? `<svg class="mearrow" viewBox="0 0 30 30" style="transform:translate(-50%,-50%) rotate(${Math.round(h)}deg)"><path d="M15 2 L26 27 L15 21 L4 27 Z" fill="#1f6fe5" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>` : '<div class="medot"></div>';
-      L.marker([DR.me.lat, DR.me.lng], { interactive: false, zIndexOffset: 2000, icon: L.divIcon({ className: "", html: me, iconSize: [0, 0] }) }).addTo(DR.meLayer);
-      if (DR.nav) { if (first) renderDrive(false); else navUpdate(); if (Date.now() - (DR.lastDraw || 0) > 30000) renderDrive(false); return; }
-      if (DR.follow) DR.map.panTo([DR.me.lat, DR.me.lng], { animate: true });
-      if (first || Date.now() - (DR.lastDraw || 0) > 15000) { if (first) DR.fitKey = ""; renderDrive(); }
+      if (DR.nav) { if (first) renderDrive(false); else navUpdate(); if (Date.now() - (DR.lastDraw || 0) > 30000) renderDrive(false); }
+      else if (first || Date.now() - (DR.lastDraw || 0) > 15000) { if (first) DR.fitKey = ""; renderDrive(); }
+      moveMe();
     }, () => { $("dGps").textContent = "Sem localização: autorize a localização ao app para ver onde está e o trecho a partir daí."; },
     { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 });
   }
@@ -1675,7 +1689,7 @@ body.driving .costbtn { display: none; }
       const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(); };
       $("dNext").onclick = () => { const j = nextAfter(vi); if (j >= 0) { DR.view = j; DR.failing = false; renderDrive(); focusStop(S.order[j]); } };
       const go = $("dGo"); if (go) go.onclick = () => { DR.view = vi; if (DR.nav) renderDrive(false); else startNav(); };
-      $("dDoor").onclick = () => { DR.follow = false; DR.map.setView([s.lat, s.lng], 18); };
+      $("dDoor").onclick = () => { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat], zoom: 18 }); };
       if (t) $("dUndo").onclick = () => { DR.view = vi; setStatus(s, null); };
       else {
         $("dOk").onclick = () => { DR.view = -1; DR.failing = false; setStatus(s, "ok"); };
@@ -1694,21 +1708,60 @@ body.driving .costbtn { display: none; }
     drawDrive(tg, fit);
     if (DR.nav) navUpdate();
   }
-  function focusStop(s) { if (DR.map && s) { DR.follow = false; DR.map.setView([s.lat, s.lng], Math.max(DR.map.getZoom(), 15)); } }
+  function focusStop(s) { if (DR.map && s) { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat], zoom: Math.max(DR.map.getZoom(), 15) }); } }
+  const curHeading = () => (DR.fast ? DR.gpsHead : DR.nav && DR.routeHead != null ? DR.routeHead : DR.heading ?? null);
+  // a seta desliza da posição anterior para a nova durante o tempo entre leituras do GPS (sem saltos)
+  function moveMe() {
+    if (!DR.map || !DR.me) return;
+    const to = { lat: DR.me.lat, lng: DR.me.lng }, toH = curHeading();
+    const from = DR.shown || to, fromH = DR.shownH ?? toH;
+    const dur = DR.shown ? Math.min(1600, Math.max(400, Date.now() - (DR.lastFix || 0))) : 0;
+    const dh = toH == null || fromH == null ? 0 : ((toH - fromH + 540) % 360) - 180;
+    DR.lastFix = Date.now();
+    const t0 = performance.now(), id = (DR.anim = (DR.anim || 0) + 1);
+    const frame = (now) => {
+      if (id !== DR.anim || !DR.on) return;
+      const k = dur ? Math.min(1, (now - t0) / dur) : 1;
+      const pos = { lat: from.lat + (to.lat - from.lat) * k, lng: from.lng + (to.lng - from.lng) * k };
+      const hh = toH == null ? null : (((fromH ?? toH) + dh * k) + 360) % 360;
+      DR.shown = pos; DR.shownH = hh;
+      placeMe(pos, hh);
+      if (DR.follow) camera(pos, hh);
+      if (k < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+  function placeMe(pos, h) {
+    if (!DR.meMk) {
+      DR.meEl = document.createElement("div");
+      DR.meMk = new maplibregl.Marker({ element: DR.meEl, rotationAlignment: "map", pitchAlignment: "map" }).setLngLat([pos.lng, pos.lat]).addTo(DR.map);
+      DR.meEl.style.zIndex = 2000;
+    }
+    const arrow = String(h != null);
+    if (DR.meEl.dataset.arrow !== arrow) { DR.meEl.dataset.arrow = arrow; DR.meEl.innerHTML = h != null ? '<svg class="mearrow" viewBox="0 0 36 36"><path d="M18 2 L31 32 L18 25 L5 32 Z" fill="#1f6fe5" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>' : '<div class="medot"></div>'; }
+    DR.meMk.setLngLat([pos.lng, pos.lat]).setRotation(h || 0);
+  }
+  // na navegação o mapa roda para a direção do carro, inclinado, com a seta no terço de baixo
+  function camera(pos, h) {
+    if (!DR.nav) { DR.map.jumpTo({ center: [pos.lng, pos.lat] }); return; }
+    const north = DR.northUp || h == null;
+    DR.map.jumpTo({ center: [pos.lng, pos.lat], bearing: north ? 0 : h, pitch: north ? 0 : 55, zoom: Math.max(DR.map.getZoom(), 16.5), padding: { top: Math.round(DR.map.getContainer().clientHeight * 0.4), bottom: 0, left: 0, right: 0 } });
+  }
   function drawDrive(tg, fit) {
-    if (!DR.map) return;
-    DR.layer.clearLayers();
+    if (!DR.map || !DR.ready) return;
     // rota completa pelas ruas, a ligar todas as entregas, em azul claro por baixo do trecho atual
     const all = seqPoints().map((x) => [x.p.lat, x.p.lng]);
-    L.polyline(routeGeom || all, { color: "#7da7e8", weight: 5, opacity: .55, dashArray: routeGeom ? null : "4 8", interactive: false }).addTo(DR.layer);
+    DR.map.getSource("full").setData(lineFeat(routeGeom || all));
     const o = tg && legOrigin(tg);
-    if (tg && o) {
-      const g = DR.leg && DR.leg.key === legKeyOf(o, tg) && DR.leg.geom;
-      L.polyline(g || [[o.p.lat, o.p.lng], [tg.p.lat, tg.p.lng]], { color: "#1f6fe5", weight: 6, opacity: .85, dashArray: g ? null : "8 10" }).addTo(DR.layer);
-    }
+    const g = tg && o && DR.leg && DR.leg.key === legKeyOf(o, tg) && DR.leg.geom;
+    DR.map.getSource("leg").setData(lineFeat(tg && o ? g || [[o.p.lat, o.p.lng], [tg.p.lat, tg.p.lng]] : []));
+    DR.map.setPaintProperty("leg", "line-dasharray", g ? null : [1.5, 1.5]);
+    DR.marks.forEach((m) => m.remove()); DR.marks = [];
     const pin = (p, cls, label, tags, z, onClick) => {
-      const m = L.marker([p.lat, p.lng], { zIndexOffset: z, icon: L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${cls}">${label}</div>${tags || ""}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(DR.layer);
-      if (onClick) m.on("click", onClick);
+      const el = document.createElement("div"); el.style.zIndex = 300 + z;
+      el.innerHTML = `<div class="pinwrap"><div class="pin ${cls}">${label}</div>${tags || ""}</div>`;
+      if (onClick) el.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+      DR.marks.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([p.lng, p.lat]).addTo(DR.map));
     };
     if (!S.start.firstIsStart) pin(S.start, "d-end", "P", "", -200);
     if (S.endPt && !S.roundTrip) pin(S.endPt, "d-end", "F", tg && tg.end ? `<div class="tags"><span class="door">Destino final</span></div>` : "", tg && tg.end ? 1000 : -200);
@@ -1718,8 +1771,8 @@ body.driving .costbtn { display: none; }
       pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(); });
     });
     if (fit && tg) {
-      const b = L.latLngBounds([[tg.p.lat, tg.p.lng]]); if (o) b.extend([o.p.lat, o.p.lng]);
-      DR.map.fitBounds(b, { padding: [60, 60], maxZoom: 16 });
+      const b = new maplibregl.LngLatBounds([tg.p.lng, tg.p.lat], [tg.p.lng, tg.p.lat]); if (o) b.extend([o.p.lng, o.p.lat]);
+      DR.map.fitBounds(b, { padding: 60, maxZoom: 16, bearing: 0, pitch: 0, duration: 600 });
     }
   }
   $("dPlan").onclick = closeDrive;
@@ -1727,7 +1780,7 @@ body.driving .costbtn { display: none; }
   $("dLoad").onclick = () => { S.autoRun = true; $("file").click(); };
   $("dWarn").onclick = () => { closeDrive(); setTimeout(() => $("checkBox").scrollIntoView({ behavior: "smooth" }), 80); };
   $("dLocate").onclick = () => {
-    if (DR.me) { DR.follow = true; DR.map.setView([DR.me.lat, DR.me.lng], Math.max(DR.map.getZoom(), 16)); }
+    if (DR.me) { DR.follow = true; if (DR.nav && DR.shown) camera(DR.shown, DR.shownH); else DR.map.easeTo({ center: [DR.me.lng, DR.me.lat], zoom: Math.max(DR.map.getZoom(), 16) }); }
     else { startGps(); renderDrive(true); }
   };
   $("driveBtn").onclick = openDrive;
@@ -1796,7 +1849,7 @@ body.driving .costbtn { display: none; }
   function startNav() {
     DR.nav = true; DR.follow = true; DR.spoken = ""; DR.arrived = ""; DR.offN = 0;
     $("drive").classList.add("navmode"); keepAwake(true); startGps();
-    setTimeout(() => DR.map.invalidateSize(), 60);
+    setTimeout(() => { DR.map.resize(); if (DR.shown) camera(DR.shown, curHeading()); }, 60);
     const tg = driveTarget();
     if (tg) say("Vamos para " + (tg.end ? "o destino final" : stopTitle(tg.p)));
     $("drive").scrollTop = 0;
@@ -1805,7 +1858,8 @@ body.driving .costbtn { display: none; }
   function stopNav() {
     DR.nav = false; $("drive").classList.remove("navmode"); $("dNav").hidden = true; $("dNavBar").hidden = true; keepAwake(false);
     try { speechSynthesis.cancel(); } catch (e) {}
-    setTimeout(() => DR.map.invalidateSize(), 60);
+    DR.map.jumpTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
+    setTimeout(() => DR.map.resize(), 60);
     renderDrive(true);
   }
   function navUpdate() {
@@ -1813,10 +1867,11 @@ body.driving .costbtn { display: none; }
     const box = $("dNav"), bar = $("dNavBar"); box.hidden = false; bar.hidden = false;
     const tg = driveTarget(), leg = DR.leg;
     const exit = `<button class="chip" id="dNavExit">Sair</button>`;
-    const voice = `<button class="chip" id="dVoice">${DR.voice ? "🔊" : "🔇"}</button>`;
+    const voice = `<button class="chip" id="dNorth">${DR.northUp ? "➤ Direção" : "🧭 Norte"}</button><button class="chip" id="dVoice">${DR.voice ? "🔊" : "🔇"}</button>`;
     const wire = () => {
       $("dNavExit").onclick = stopNav;
       $("dVoice").onclick = () => { DR.voice = !DR.voice; store.set("rota.voz", DR.voice ? 1 : 0); navUpdate(); };
+      $("dNorth").onclick = () => { DR.northUp = !DR.northUp; store.set("rota.norte", DR.northUp ? 1 : 0); DR.follow = true; if (DR.shown) camera(DR.shown, DR.shownH); navUpdate(); };
       const ok = $("dArrOk"); if (ok) ok.onclick = () => $("dOk") && $("dOk").click();
       const no = $("dArrNo"); if (no) no.onclick = () => { DR.failing = true; renderDrive(false); $("dCard").scrollIntoView({ behavior: "smooth", block: "center" }); };
     };
@@ -1829,6 +1884,10 @@ body.driving .costbtn { display: none; }
       // fora do caminho em duas leituras seguidas: pede um caminho novo a partir daqui
       if (pr.d > 50) { if (++DR.offN >= 2 && Date.now() - leg.t > 8000) { DR.offRoute = true; DR.offN = 0; driveLeg(); } } else DR.offN = 0;
       left = Math.max(0, leg.len - pr.along);
+      // direção do caminho uns 30 m à frente: é para onde a seta e o mapa apontam com o carro parado
+      let ai = leg.cum.findIndex((c) => c >= pr.along + 30); if (ai < 0) ai = leg.geom.length - 1;
+      const ahead = { lat: leg.geom[ai][0], lng: leg.geom[ai][1] };
+      if (hav(DR.me, ahead) * 1000 > 3) DR.routeHead = bearing(DR.me, ahead);
       const k = leg.steps.findIndex((s, i) => i > 0 && s.along > pr.along + 8);
       step = leg.steps[k >= 0 ? k : leg.steps.length - 1]; next = k >= 0 ? leg.steps[k + 1] : null;
       step.left = Math.max(0, step.along - pr.along); step.key = leg.key + "#" + k;
@@ -1849,7 +1908,6 @@ body.driving .costbtn { display: none; }
       box.innerHTML = `<div class="narrow">↑</div><div class="ntext"><b>${fmtDist(near)}</b><span>A calcular o caminho pelas ruas…</span></div>`;
     }
     wire();
-    if (DR.follow) DR.map.setView([DR.me.lat, DR.me.lng], Math.max(DR.map.getZoom(), 17), { animate: true });
   }
 
   // ---------- início: última planilha usada neste aparelho, ou o exemplo ----------
