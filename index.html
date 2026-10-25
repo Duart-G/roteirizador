@@ -213,11 +213,11 @@ body.driving .costbtn { display: none; }
 .pin.d-done { background: #8a948f; opacity: .75; }
 .pin.d-fail { background: #c0392b; color: #fff; opacity: .85; }
 .pin.d-end { background: var(--ink); color: var(--panel); border-radius: 6px; }
-.dnav { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 850; display: flex; gap: 12px; align-items: flex-start; background: #0f5132; color: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
+.dnav { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 850; display: flex; gap: 12px; align-items: flex-start; background: #0d0f12; color: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
 .narrow { font-size: 40px; line-height: 1; min-width: 44px; text-align: center; }
 .ntext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ntext b { font: 700 26px/1.1 var(--font-display); }
-.ntext span { font-size: 17px; font-weight: 600; }
+.ntext span { font-size: 19px; font-weight: 700; color: #33ccff; }
 .ntext small { font-size: 13px; opacity: .8; }
 .nacts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .nacts .btn { font-size: 16px; padding: 10px 14px; }
@@ -227,7 +227,12 @@ body.driving .costbtn { display: none; }
 .ninfo b { font: 700 22px/1.1 var(--font-display); color: var(--ok); }
 .ninfo span { font-size: 13px; color: var(--muted); }
 .navmode .dnextbar, .navmode .dgps { display: none; }
-.mearrow { width: 38px; height: 38px; display: block; filter: drop-shadow(0 1px 3px rgba(0,0,0,.45)); }
+.mearrow { width: 64px; height: 64px; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.radar { display: flex; align-items: center; gap: 2px; background: #f7c600; color: #1a2029; border: 2px solid #fff; border-radius: 8px; padding: 2px 5px; font: 800 13px/1 var(--font-body); box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.radar span { font-size: 15px; }
+.nradar { margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; background: #f7c600; color: #1a2029; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 16px; }
+#dmap { background: #262d3a; }
+
 #dmap .maplibregl-ctrl-attrib { font-size: 11px; }
 @media (max-width: 760px) { .drive.navmode .dmapwrap { height: 74vh; height: 74dvh; } }
 .medot { width: 18px; height: 18px; border-radius: 50%; background: #1f6fe5; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(31,111,229,.35), 0 1px 4px rgba(0,0,0,.4); }
@@ -1617,19 +1622,25 @@ body.driving .costbtn { display: none; }
     if (!DR.map) {
       DR.map = new maplibregl.Map({
         container: "dmap", center: [S.order[0].lng, S.order[0].lat], zoom: 13, attributionControl: { compact: true },
-        style: { version: 8, sources: { esri: { type: "raster", tileSize: 256, maxzoom: 19, attribution: "© Esri, HERE, Garmin, OpenStreetMap", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"] } }, layers: [{ id: "esri", type: "raster", source: "esri" }] },
+        style: wazeStyle(),
+      });
+      DR.map.on("error", (e) => {
+        if (e && e.sourceId === "ofm" && !DR.esriOn) { DR.esriOn = true; try { DR.map.setLayoutProperty("esri", "visibility", "visible"); } catch (err) {} }
       });
       DR.marks = [];
-      DR.map.on("load", () => {
+      DR.map.once("style.load", () => {
         const empty = lineFeat([]), round = { "line-join": "round", "line-cap": "round" };
         DR.map.addSource("full", { type: "geojson", data: empty }); DR.map.addSource("leg", { type: "geojson", data: empty });
-        DR.map.addLayer({ id: "full", type: "line", source: "full", layout: round, paint: { "line-color": "#7da7e8", "line-width": 5, "line-opacity": 0.6 } });
-        DR.map.addLayer({ id: "leg", type: "line", source: "leg", layout: round, paint: { "line-color": "#1f6fe5", "line-width": 7, "line-opacity": 0.9 } });
-        DR.ready = true; renderDrive(true);
+        const w = (a, b, c) => ["interpolate", ["linear"], ["zoom"], 10, a, 15, b, 19, c];
+        DR.map.addLayer({ id: "full", type: "line", source: "full", layout: round, paint: { "line-color": "#6f9be0", "line-width": w(3, 6, 12), "line-opacity": 0.55 } });
+        DR.map.addLayer({ id: "legcase", type: "line", source: "leg", layout: round, paint: { "line-color": "#0b6f93", "line-width": w(8, 17, 34) } });
+        DR.map.addLayer({ id: "leg", type: "line", source: "leg", layout: round, paint: { "line-color": "#33ccff", "line-width": w(5, 12, 26) } });
+        DR.ready = true; renderDrive(true); drawRadars();
       });
       DR.map.on("dragstart", () => { DR.follow = false; });
     }
     DR.view = -1; DR.fitKey = ""; DR.failing = false;
+    loadRadars();
     setTimeout(() => { DR.map.resize(); renderDrive(true); }, 60);
     startGps(); renderDrive(true);
   }
@@ -1769,7 +1780,7 @@ body.driving .costbtn { display: none; }
       DR.meEl.style.zIndex = 2000;
     }
     const arrow = String(h != null);
-    if (DR.meEl.dataset.arrow !== arrow) { DR.meEl.dataset.arrow = arrow; DR.meEl.innerHTML = h != null ? '<svg class="mearrow" viewBox="0 0 36 36"><path d="M18 2 L31 32 L18 25 L5 32 Z" fill="#1f6fe5" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>' : '<div class="medot"></div>'; }
+    if (DR.meEl.dataset.arrow !== arrow) { DR.meEl.dataset.arrow = arrow; DR.meEl.innerHTML = h != null ? '<svg class="mearrow" viewBox="0 0 64 64"><ellipse cx="32" cy="36" rx="27" ry="24" fill="rgba(10,20,30,.35)"/><path d="M32 6 L54 52 L32 41 L10 52 Z" fill="#33ccff" stroke="#fff" stroke-width="4" stroke-linejoin="round"/></svg>' : '<div class="medot"></div>'; }
     DR.meMk.setLngLat([pos.lng, pos.lat]).setRotation(h || 0);
   }
   // na navegação o mapa roda para a direção do carro, inclinado, com a seta no terço de baixo
@@ -1829,6 +1840,81 @@ body.driving .costbtn { display: none; }
     else { startGps(); renderDrive(true); }
   };
   $("driveBtn").onclick = openDrive;
+
+  // estilo escuro parecido com o Waze, com mapas vetoriais grátis (OpenFreeMap, sem chave);
+  // se não carregarem, mostra os mapas Esri por baixo
+  function wazeStyle() {
+    const F = ["Noto Sans Bold"], cls = ["get", "class"], big = ["motorway", "trunk"], mid = ["primary", "secondary"];
+    const roadW = (e) => ["interpolate", ["exponential", 1.5], ["zoom"],
+      10, ["match", cls, big, 2.5 + e / 3, mid, 1.6 + e / 3, 0.6 + e / 3],
+      14, ["match", cls, big, 8 + e, mid, 6 + e, 3.5 + e],
+      18, ["match", cls, big, 30 + e * 2, mid, 26 + e * 2, 18 + e * 2]];
+    const roads = ["!", ["in", cls, ["literal", ["path", "track", "rail", "transit", "ferry", "bridge", "pier", "aerialway"]]]];
+    const round = { "line-join": "round", "line-cap": "round" };
+    return {
+      version: 8,
+      glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+      sources: {
+        ofm: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "© OpenFreeMap © OpenMapTiles © OpenStreetMap" },
+        esri: { type: "raster", tileSize: 256, maxzoom: 19, attribution: "© Esri, HERE, Garmin, OpenStreetMap", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"] },
+      },
+      layers: [
+        { id: "bg", type: "background", paint: { "background-color": "#262d3a" } },
+        { id: "esri", type: "raster", source: "esri", layout: { visibility: "none" } },
+        { id: "landcover", type: "fill", source: "ofm", "source-layer": "landcover", filter: ["in", cls, ["literal", ["wood", "grass", "farmland", "scrub", "wetland"]]], paint: { "fill-color": "#22634a" } },
+        { id: "park", type: "fill", source: "ofm", "source-layer": "park", paint: { "fill-color": "#22634a" } },
+        { id: "landuse", type: "fill", source: "ofm", "source-layer": "landuse", filter: ["in", cls, ["literal", ["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]]], paint: { "fill-color": "#262d3a" } },
+        { id: "water", type: "fill", source: "ofm", "source-layer": "water", paint: { "fill-color": "#22477a" } },
+        { id: "building", type: "fill", source: "ofm", "source-layer": "building", minzoom: 15, paint: { "fill-color": "#303949" } },
+        { id: "road-case", type: "line", source: "ofm", "source-layer": "transportation", filter: roads, layout: round, paint: { "line-color": "#1a2029", "line-width": roadW(3) } },
+        { id: "road", type: "line", source: "ofm", "source-layer": "transportation", filter: roads, layout: round, paint: { "line-color": ["match", cls, big, "#5d7ca6", mid, "#4c678c", "#3e5473"], "line-width": roadW(0) } },
+        { id: "place", type: "symbol", source: "ofm", "source-layer": "place", filter: ["in", cls, ["literal", ["city", "town", "village", "suburb", "hamlet"]]], layout: { "text-field": ["get", "name"], "text-font": F, "text-size": ["match", cls, "city", 22, "town", 19, 16] }, paint: { "text-color": "#aab6c8", "text-halo-color": "#1a2029", "text-halo-width": 2 } },
+        { id: "road-name", type: "symbol", source: "ofm", "source-layer": "transportation_name", minzoom: 13, layout: { "symbol-placement": "line", "text-field": ["get", "name"], "text-font": F, "text-size": ["interpolate", ["linear"], ["zoom"], 13, 14, 16, 18, 19, 24], "text-max-angle": 35, "text-padding": 6 }, paint: { "text-color": "#eef2f8", "text-halo-color": "#1a2029", "text-halo-width": 2.5 } },
+      ],
+    };
+  }
+  // ---------- radares (OpenStreetMap: highway=speed_camera), grátis ----------
+  async function loadRadars() {
+    if (DR.radarsBusy || !S.order.length) return;
+    const pts = S.order.concat(S.start && !S.start.firstIsStart ? [S.start] : [], S.endPt ? [S.endPt] : []);
+    const s = Math.min(...pts.map((p) => p.lat)) - 0.05, n = Math.max(...pts.map((p) => p.lat)) + 0.05;
+    const w = Math.min(...pts.map((p) => p.lng)) - 0.05, e = Math.max(...pts.map((p) => p.lng)) + 0.05;
+    const key = [s, w, n, e].map((v) => v.toFixed(2)).join(",");
+    if (DR.radarKey === key) return;
+    const cache = store.get("rota.radar", null);
+    let list = cache && cache.key === key && Date.now() - cache.t < 7 * 864e5 ? cache.list : null;
+    if (!list) {
+      DR.radarsBusy = true;
+      try {
+        const q = `[out:json][timeout:25];(node["highway"="speed_camera"](${s},${w},${n},${e});node["enforcement"="maxspeed"](${s},${w},${n},${e}););out;`;
+        const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const j = await res.json();
+        list = j.elements.filter((el) => el.lat != null).map((el) => ({ lat: el.lat, lng: el.lon, max: parseInt(el.tags && el.tags.maxspeed, 10) || null }));
+        store.set("rota.radar", { key, t: Date.now(), list });
+      } catch (err) { DR.radarsBusy = false; return; }
+      DR.radarsBusy = false;
+    }
+    DR.radarKey = key; DR.radars = list;
+    if (DR.leg) DR.leg.radars = null;
+    drawRadars();
+  }
+  function drawRadars() {
+    if (!DR.map || !DR.ready) return;
+    (DR.radarMarks || []).forEach((m) => m.remove());
+    DR.radarMarks = (DR.radars || []).map((r) => {
+      const el = document.createElement("div"); el.className = "radar"; el.style.zIndex = 250;
+      el.innerHTML = `<span>📷</span>${r.max ? `<b>${r.max}</b>` : ""}`; el.title = "Radar" + (r.max ? " " + r.max + " km/h" : "");
+      return new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([r.lng, r.lat]).addTo(DR.map);
+    });
+  }
+  // radar à frente no caminho (a menos de 30 m da linha e até 600 m adiante)
+  function radarAhead(leg, pr) {
+    if (!DR.radars || !DR.radars.length || !leg.geom) return null;
+    if (!leg.radars) leg.radars = DR.radars.map((r) => ({ r, o: onLeg(r, leg) })).filter((x) => x.o.d < 30);
+    const ah = leg.radars.map((x) => ({ r: x.r, dist: x.o.along - pr.along })).filter((x) => x.dist > -10 && x.dist < 600).sort((a, b) => a.dist - b.dist);
+    return ah[0] || null;
+  }
 
   // ---------- navegação curva a curva dentro do app (OSRM, sem Google) ----------
   // Segue o GPS no mapa, mostra a próxima manobra com a distância, fala as instruções e
@@ -1946,7 +2032,11 @@ body.driving .costbtn { display: none; }
         : `<div class="narrow">⚑</div><div class="ntext"><b>Chegou: ${esc(stopTitle(tg.p))}</b><span>VDC ${esc(tg.p.items.map((y) => y.id).join(", "))}</span><div class="nacts"><button class="btn okbtn" id="dArrOk">✓ Entregue</button><button class="btn failbtn" id="dArrNo">✗ Não entregue</button></div></div>`;
       if (DR.arrived !== tkey) { DR.arrived = tkey; say(tg.end ? "Chegou ao destino final" : "Chegou à entrega " + stopTitle(tg.p)); }
     } else if (step) {
-      box.innerHTML = `<div class="narrow">${stepArrow(step)}</div><div class="ntext"><b>${fmtDist(step.left)}</b><span>${esc(stepText(step))}</span>${next && next.type !== "arrive" ? `<small>Depois: ${esc(stepText(next))}</small>` : ""}</div>`;
+      const rad = radarAhead(leg, pr);
+      box.innerHTML = `<div class="narrow">${stepArrow(step)}</div><div class="ntext"><b>${fmtDist(step.left)}</b><span>${esc(stepText(step))}</span>${next && next.type !== "arrive" ? `<small>Depois: ${esc(stepText(next))}</small>` : ""}${rad ? `<div class="nradar">📷 Radar a ${fmtDist(Math.max(0, rad.dist))}${rad.r.max ? " · " + rad.r.max + " km/h" : ""}</div>` : ""}</div>`;
+      const rk = rad && rad.r.lat + "," + rad.r.lng;
+      if (rad && rad.dist < 400 && DR.radarSaid !== rk) { DR.radarSaid = rk; say("Atenção, radar a " + sayDist(Math.max(50, rad.dist)) + (rad.r.max ? ", limite " + rad.r.max : "")); }
+      else
       if (DR.spoken !== step.key) { DR.spoken = step.key; DR.spokenNear = ""; say((step.left > 80 ? "Em " + sayDist(step.left) + ", " : "") + stepText(step)); }
       else if (step.left < 60 && DR.spokenNear !== step.key && step.type !== "arrive") { DR.spokenNear = step.key; say(stepText(step)); }
     } else {
