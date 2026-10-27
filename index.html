@@ -360,7 +360,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     </table></div>
   </section>
 
-  <p class="foot">Localização de endereços: ViaCEP e OpenStreetMap (Nominatim). Tempos de trajeto: OSRM. Mapa: Esri. Nenhuma chave de API é necessária. Quando esses serviços não respondem, o app estima pela distância em linha reta.</p>
+  <p class="foot">Localização de endereços: ViaCEP e OpenStreetMap (Nominatim, Photon e Overpass). Tempos de trajeto: OSRM. Mapa: Esri. Nenhuma chave de API é necessária. Quando esses serviços não respondem, o app estima pela distância em linha reta.</p>
 </div>
 
 <div class="drive" id="drive" hidden>
@@ -462,7 +462,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
 
   const S = {
     wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false, excl: store.get("rota.excl", {}), excluded: [],
-    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
+    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
 
   // estado do modo entrega (ver mais abaixo)
@@ -626,7 +626,11 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     s.sheetLat = s.lat; s.sheetLng = s.lng; s.pk = [s.id, s.codigo, s.cep].join("|");
     const mv = S.pins[s.pk];
     if (mv) { s.lat = mv.lat; s.lng = mv.lng; s.moved = true; }
-    else if (s.end) { const me = S.mem[memKey(s)]; if (me) { s.lat = me.lat; s.lng = me.lng; s.fromMem = me; } }
+    else if (s.end) {
+      const k = memKey(s), me = S.mem[k], gf = S.geofix[k];
+      if (me) { s.lat = me.lat; s.lng = me.lng; s.fromMem = me; }
+      else if (gf && !S.geofixOff[k]) { s.lat = gf.lat; s.lng = gf.lng; s.geoFix = gf; }
+    }
     const cepTxt = s.cep && fmtCep(s.cep);
     s.addr = [s.end && (s.end + (s.num ? ", " + s.num : "")), s.bairro, s.cidade && (s.cidade + (s.uf ? " - " + s.uf : "")), cepTxt && !s.end.includes(cepTxt) && cepTxt].filter(Boolean).join(" · ");
     return s;
@@ -1075,7 +1079,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     const zones = groupBy(zoneOf), fulls = groupBy(digits);
     const todo = [];
     for (const x of withC) {
-      if (S.keepOrig.has(x.i) || x.moved || x.fromMem) continue;
+      if (S.keepOrig.has(x.i) || x.moved || x.fromMem || x.geoFix) continue;
       const peers = zones.get(zoneOf(x)).filter((o) => o !== x);
       if (peers.length < 3) continue;
       const c = center(peers);
@@ -1101,43 +1105,198 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       S.fixed.push({ x, d: t.d, how });
     }
   }
-  // ---------- 2ª fonte: procura a morada no mapa (OpenStreetMap) e compara com o pino ----------
+  // ---------- 2ª fonte: procura a morada no mapa (OpenStreetMap) e acerta o pino ----------
+  // Fontes grátis, por ordem: Overpass (casas com o mesmo número e ruas com o mesmo nome até 3 km do pino),
+  // Photon (pesquisa tolerante a erros, perto do pino) e Nominatim (só na área do pino, com variantes do nome).
+  // Os nomes comparam-se sem acentos, abreviaturas, tipo de via e partículas: "R. Cidade de Recife" = "Rua Cidade do Recife".
+  // O código postal da planilha não entra na pesquisa, porque às vezes vem errado (4900-359 em vez de 4900-379).
+  const ABBR = { r: "rua", av: "avenida", avda: "avenida", trav: "travessa", tv: "travessa", lg: "largo", pc: "praca", pca: "praca", pct: "praceta", estr: "estrada", est: "estrada", al: "alameda", urb: "urbanizacao", bc: "beco", cc: "calcada", cam: "caminho", dr: "doutor", eng: "engenheiro", prof: "professor", sto: "santo", sta: "santa", sr: "senhor", sra: "senhora", gen: "general", cap: "capitao", cel: "coronel", pe: "padre" };
+  const STREET_TYPES = new Set(["rua", "avenida", "travessa", "largo", "praca", "praceta", "estrada", "alameda", "urbanizacao", "beco", "calcada", "caminho", "viela", "rotunda", "lugar", "rampa", "escadas", "escadinhas", "azinhaga", "via", "variante", "rodovia", "alameda"]);
+  const PARTICLES = new Set(["de", "do", "da", "dos", "das", "e", "d"]);
+  const streetTokens = (s) => norm(s).replace(/[^a-z0-9]+/g, " ").split(" ").filter(Boolean).map((w) => ABBR[w] || w).filter((w) => !STREET_TYPES.has(w) && !PARTICLES.has(w));
+  // palavras iguais ou com uma letra trocada/a mais (só em palavras de 5+ letras)
+  function near1(a, b) {
+    if (a === b) return true;
+    if (Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 5) return false;
+    let i = 0, j = 0, e = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++e > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return e + (a.length - i) + (b.length - j) <= 1;
+  }
+  function streetSim(a, b) {
+    const A = streetTokens(a), B = streetTokens(b);
+    if (!A.length || !B.length) return 0;
+    return A.filter((w) => B.some((v) => near1(w, v))).length / Math.max(A.length, B.length);
+  }
+  // número da porta com a letra: "103-B" → {n:"103", l:"b"}; lotes não contam (não são números de porta)
+  function doorFull(x) {
+    const d = String(doorOf(x) || "").trim();
+    if (!d || /lote/i.test(d)) return null;
+    const m = d.match(/^(\d+)\s*-?\s*([a-z])?$/i); if (!m) return null;
+    let l = (m[2] || "").toLowerCase();
+    if (!l) { const k = String(x.end || "").match(new RegExp("(?:^|\\D)" + m[1] + "\\s*-?\\s*([a-z])(?![a-z/º°.])", "i")); if (k) l = k[1].toLowerCase(); }
+    return { n: m[1], l };
+  }
+  // 1 = mesmo número e letra; 0,85 = mesmo número, letra só de um lado; 0,7 = dentro de um intervalo "101-105"
+  function doorScore(hn, d) {
+    let best = 0;
+    for (const p of String(hn || "").toLowerCase().split(/[;,]/)) {
+      const r = p.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
+      if (r) { if (+d.n >= +r[1] && +d.n <= +r[2]) best = Math.max(best, 0.7); continue; }
+      const m = p.match(/^\s*(\d+)\s*[-\s/]?\s*([a-z])?\s*$/);
+      if (!m || m[1] !== d.n) continue;
+      const l = m[2] || "";
+      best = Math.max(best, l === d.l ? 1 : !l || !d.l ? 0.85 : 0.6);
+    }
+    return best;
+  }
+  // ponto da rua mais perto do pino
+  function nearestOnLine(p, pts) {
+    const kx = Math.cos((p.lat * Math.PI) / 180);
+    let best = null;
+    for (let i = 1; i < pts.length; i++) {
+      const ax = (pts[i - 1].lon - p.lng) * kx, ay = pts[i - 1].lat - p.lat, bx = (pts[i].lon - p.lng) * kx, by = pts[i].lat - p.lat;
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+      const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      const x = ax + t * dx, y = ay + t * dy, d = x * x + y * y;
+      if (!best || d < best.d) best = { d, lat: p.lat + y, lng: p.lng + x / kx };
+    }
+    return best ? { lat: best.lat, lng: best.lng } : pts.length ? { lat: pts[0].lat, lng: pts[0].lon } : null;
+  }
+  const accentRe = (w) => w.replace(/[^a-z0-9]/g, "").replace(/[aeiouc]/g, (c) => ({ a: "[aáàâã]", e: "[eéèê]", i: "[iíì]", o: "[oóòôõ]", u: "[uúü]", c: "[cç]" }[c]));
+  async function osmLookup(list) {
+    for (let i = 0; i < list.length; i += 15) {
+      const part = list.slice(i, i + 15);
+      const at = (t, r) => `(around:${r},${t.st.lat.toFixed(6)},${t.st.lng.toFixed(6)})`;
+      const hs = part.filter((t) => t.door).map((t) => `nwr${at(t, 3000)}["addr:housenumber"~"^${t.door.n}([^0-9]|$)"];`).join("");
+      const ws = part.filter((t) => t.word).map((t) => `way${at(t, 2500)}[highway][name~"${accentRe(t.word)}",i];`).join("");
+      if (!hs && !ws) continue;
+      const j = await overpassJSON(`[out:json][timeout:25];${hs ? `(${hs});out center tags;` : ""}${ws ? `(${ws});out tags geom;` : ""}`);
+      const houses = [], streets = [];
+      for (const el of j.elements || []) {
+        const tg = el.tags || {};
+        if (tg["addr:housenumber"]) { const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon; if (lat != null) houses.push({ lat, lng, hn: tg["addr:housenumber"], street: tg["addr:street"] || tg["addr:place"] || "", pc: tg["addr:postcode"] || "" }); }
+        else if (tg.highway && el.geometry) streets.push({ name: tg.name || "", geom: el.geometry });
+      }
+      for (const t of part) {
+        if (t.door) houses.forEach((h) => { if (hav(t.st, h) <= 3) t.cands.push({ lat: h.lat, lng: h.lng, house: true, hn: h.hn, street: h.street, pc: h.pc, src: "OpenStreetMap", name: `${h.street} ${h.hn}` }); });
+        let bs = null;
+        streets.forEach((w) => {
+          if (streetSim(t.rua, w.name) < 0.75) return;
+          const p = nearestOnLine(t.st, w.geom); if (!p) return;
+          const d = hav(t.st, p); if (d <= 2.5 && (!bs || d < bs.d)) bs = { ...p, d, name: w.name };
+        });
+        if (bs) t.cands.push({ lat: bs.lat, lng: bs.lng, house: false, street: bs.name, src: "OpenStreetMap", name: bs.name, onStreet: true });
+      }
+    }
+  }
+  async function photonLookup(t) {
+    const q = new URLSearchParams({ q: [t.rua, t.door ? t.door.n + t.door.l : ""].filter(Boolean).join(" "), lat: t.st.lat.toFixed(5), lon: t.st.lng.toFixed(5), limit: "6" });
+    const j = await getJSON("https://photon.komoot.io/api/?" + q);
+    (j.features || []).forEach((f) => {
+      const p = f.properties || {}, c = f.geometry && f.geometry.coordinates; if (!c) return;
+      const street = p.street || (p.osm_key === "highway" ? p.name : "") || "";
+      t.cands.push({ lat: c[1], lng: c[0], house: !!p.housenumber, hn: p.housenumber || "", street, pc: p.postcode || "", src: "Photon", name: [street, p.housenumber, p.postcode, p.city].filter(Boolean).join(" ") });
+    });
+  }
+  async function nominatimLookup(t) {
+    const v = 0.05, box = [t.st.lng - v, t.st.lat + v, t.st.lng + v, t.st.lat - v].map((n) => n.toFixed(5)).join(",");
+    // variantes do nome: como está, e com "de/do/da" trocados ("Cidade de Recife" → "Cidade do Recife")
+    const names = [t.rua];
+    const m = t.rua.match(/\s(de|do|da)\s/i);
+    if (m) ["do", "da", "de"].filter((p) => p !== m[1].toLowerCase()).forEach((p) => names.push(t.rua.replace(m[0], " " + p + " ")));
+    for (const name of names) {
+      const wait = 1100 - (Date.now() - lastNominatim); if (wait > 0) await sleep(wait);
+      lastNominatim = Date.now();
+      const q = new URLSearchParams({ format: "jsonv2", limit: "5", addressdetails: "1", countrycodes: "pt,br", "accept-language": "pt-PT", viewbox: box, bounded: "1", q: [name, t.door ? t.door.n : ""].filter(Boolean).join(" ") });
+      const j = await getJSON("https://nominatim.openstreetmap.org/search?" + q);
+      (j || []).forEach((r) => { const a = r.address || {}; t.cands.push({ lat: +r.lat, lng: +r.lon, house: !!a.house_number, hn: a.house_number || "", street: a.road || a.pedestrian || a.footway || "", pc: a.postcode || "", src: "Nominatim", name: r.display_name }); });
+      if (bestCand(t)?.exact) return;
+    }
+  }
+  // melhor resultado: número da porta certo pesa mais, depois o nome da rua, depois o código postal e a distância
+  function bestCand(t) {
+    let best = null;
+    for (const c of t.cands) {
+      const d = hav(t.st, c) * 1000; if (d > 5000) continue;
+      const sim = streetSim(t.rua, c.street); if (sim < 0.6) continue;
+      const ds = c.house && t.door ? doorScore(c.hn, t.door) : 0;
+      if (c.house && !ds) continue;
+      const s = ds * 2 + sim + (c.onStreet ? 0.05 : 0) + (c.pc && t.cp && c.pc === t.cp ? 0.1 : 0) - d / 50000;
+      if (!best || s > best.s) best = { ...c, d, sim, ds, s, exact: c.house && ds >= 0.85 && sim >= 0.75 };
+    }
+    return best;
+  }
   async function verifyAddresses() {
     const token = (S.verifyToken = {}); S.diffs = [];
     if (!S.order.length) return;
-    let k = 0, net = 0;
+    const hint = (t) => { if (S.verifyToken === token) $("verifyHint").textContent = t; };
+    const list = [];
     for (const st of S.order) {
-      if (S.verifyToken !== token) return;
-      k++;
       const x = st.items[0];
-      if (x.moved || x.fromMem || !x.end) continue;
-      const door = doorOf(x), rua = streetOf(x.end), cp = x.cep ? fmtCep(x.cep) : "";
-      const q = [rua + (door && !/lote/i.test(door) ? " " + door : ""), cp, x.cidade].filter(Boolean).join(", ");
-      const key = "chk|" + q;
-      let r = geoCache[key];
-      if (r === undefined) {
-        $("verifyHint").textContent = `Conferindo as moradas no mapa: ${k} de ${S.order.length}…`;
-        try { r = await nominatim({ q, addressdetails: "1" }); if (!r && cp) r = await nominatim({ q: [rua, cp].join(", "), addressdetails: "1" }); }
-        catch (e) { if (++net >= 3) { $("verifyHint").textContent = "Não foi possível conferir as moradas no mapa agora (só funciona no arquivo aberto no Chrome)."; return; } continue; }
-        geoCache[key] = r || null; store.set("rota.geo", geoCache);
+      if (x.moved || x.fromMem || x.geoFix || !x.end) continue;
+      const rua = streetOf(x.end); if (!rua) continue;
+      const door = doorFull(x), words = streetTokens(rua).filter((w) => w.length >= 4 && !/^\d+$/.test(w)).sort((a, b) => b.length - a.length);
+      const key = ["chk2", norm(rua), door ? door.n + door.l : "", st.lat.toFixed(3), st.lng.toFixed(3)].join("|");
+      list.push({ st, x, rua, door, word: words[0] || "", cp: x.cep ? fmtCep(x.cep) : "", key, cands: [], best: geoCache[key] });
+    }
+    const todo = list.filter((t) => t.best === undefined);
+    let net = 0;
+    if (todo.length) {
+      hint(`Procurando as moradas no mapa (${todo.length})…`);
+      try { await osmLookup(todo); } catch (e) { net++; }
+      let k = 0, fails = 0;
+      for (const t of todo) {
+        if (S.verifyToken !== token) return;
+        k++;
+        let ok = net === 0;
+        if (!bestCand(t)?.exact) {
+          hint(`Conferindo as moradas no mapa: ${k} de ${todo.length}…`);
+          try { await photonLookup(t); ok = true; } catch (e) {}
+          if (!bestCand(t)?.exact) { try { await nominatimLookup(t); ok = true; } catch (e) {} }
+        }
+        if (!ok) { if (++fails >= 3 && fails === k) { hint("Não foi possível conferir as moradas no mapa agora (sem internet ou serviços do OpenStreetMap ocupados). Tente calcular de novo mais tarde."); return; } continue; }
+        const b = bestCand(t);
+        t.best = b ? { lat: b.lat, lng: b.lng, house: b.house, exact: b.exact, onStreet: !!b.onStreet, src: b.src, name: b.name, pc: b.pc } : null;
+        geoCache[t.key] = t.best; store.set("rota.geo", geoCache);
       }
-      if (!r) continue;
-      const d = hav(st, r) * 1000, lim = r.house ? 300 : 800;
-      // mais de 5 km do pino: o mapa achou outra terra com o mesmo nome de rua, não serve para conferir
-      if (d > 5000) continue;
-      if (d > lim && !S.ignore[x.pk]) S.diffs.push({ st, x, r, d });
     }
     if (S.verifyToken !== token) return;
+    let nFix = 0;
+    for (const t of list) {
+      const b = t.best; if (!b) continue;
+      const d = hav(t.st, b) * 1000, fk = memKey(t.x);
+      if (d > 5000) continue;
+      const pcDiff = b.pc && t.cp && /^\d{4}-\d{3}$/.test(b.pc) && b.pc !== t.cp ? b.pc : "";
+      // casa com o mesmo número na mesma rua: o pino vai para lá sozinho (dá para voltar atrás)
+      if (b.exact) {
+        if (d > 60 && !S.geofixOff[fk]) { S.geofix[fk] = { lat: b.lat, lng: b.lng, src: b.src, name: b.name, pc: pcDiff, d: Math.round(d), t: Date.now() }; nFix++; }
+        continue;
+      }
+      const lim = b.house ? 300 : b.onStreet ? 250 : 800;
+      if (d > lim && !S.ignore[t.x.pk]) S.diffs.push({ st: t.st, x: t.x, r: b, d, pc: pcDiff });
+    }
+    if (nFix) {
+      store.set("rota.geofix", S.geofix);
+      log(`Acertei ${nFix} pino(s) pela morada no mapa (casa com o mesmo número na mesma rua). Recalculando a rota…`);
+      run();
+      return;
+    }
     S.seeDiff = null;
-    $("verifyHint").textContent = `Conferi ${S.order.length} moradas no mapa: ${S.diffs.length} com o pino longe da morada (mais de 300 m, ou 800 m quando o mapa só conhece a rua). Toque em "Ver no mapa" para ver onde o mapa põe a morada.`;
+    const nAuto = S.order.filter((st) => st.items.some((x) => x.geoFix)).length;
+    hint(`Conferi ${list.length + nAuto} moradas no mapa${nAuto ? `: ${nAuto} pino(s) acertados pela morada` : ""}${S.diffs.length ? `${nAuto ? "," : ":"} ${S.diffs.length} com o pino longe da rua ou da porta` : ""}. Toque em "Ver no mapa" para ver onde o mapa põe a morada.`);
     renderCheck(); drawMap(true);
   }
   function errorRows() {
     const rows = [];
     const add = (tipo, x, usada, d, extra) => rows.push({ tipo, x, usada, d, extra });
     (S.fixed || []).forEach((f) => add("Coordenada fora da zona do código postal", f.x, { lat: f.x.lat, lng: f.x.lng }, f.d * 1000, "Corrigida com " + f.how));
-    (S.diffs || []).forEach((f) => add(`Morada no mapa a ${Math.round(f.d)} m do pino`, f.x, f.r, f.d, f.r.house ? "Mapa encontrou a porta" : "Mapa só encontrou a rua"));
+    (S.diffs || []).forEach((f) => add(`Morada no mapa a ${Math.round(f.d)} m do pino`, f.x, f.r, f.d, (f.r.house ? "Mapa encontrou a porta" : "Mapa só encontrou a rua") + (f.pc ? "; código postal no mapa: " + f.pc : "")));
     S.order.forEach((st) => st.items.forEach((x) => {
+      if (x.geoFix) add("Pino acertado pela morada no mapa (automático)", x, { lat: x.lat, lng: x.lng }, x.geoFix.d, "Fonte: " + x.geoFix.src + " (" + x.geoFix.name + ")" + (x.geoFix.pc ? "; código postal no mapa: " + x.geoFix.pc : ""));
       if (x.moved) add("Pino movido à mão", x, { lat: x.lat, lng: x.lng }, hav({ lat: x.sheetLat, lng: x.sheetLng }, x) * 1000, "");
       else if (x.fromMem && isFinite(x.sheetLat) && hav({ lat: x.sheetLat, lng: x.sheetLng }, x) * 1000 > 100) add("Planilha difere da posição memorizada", x, { lat: x.lat, lng: x.lng }, hav({ lat: x.sheetLat, lng: x.sheetLng }, x) * 1000, "Memorizada por " + x.fromMem.fonte + " em " + new Date(x.fromMem.t).toLocaleDateString("pt-PT"));
       const t = stOf(st); if (t && t.st === "fail" && /morada/i.test(t.motivo)) add("Não entregue: " + t.motivo, x, null, null, "");
@@ -1147,6 +1306,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   function renderCheck() {
     const box = $("checkBox"), list = S.fixed || [], diffs = S.diffs || [];
     const moved = S.order.filter((st) => st.items.some((x) => x.moved));
+    const auto = S.order.filter((st) => st.items.some((x) => x.geoFix && !x.moved));
     const errs = errorRows();
     box.hidden = !S.order.length || (!errs.length && !S.keepOrig.size && !$("verifyHint").textContent);
     $("checkHint").textContent = errs.length
@@ -1160,8 +1320,12 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       <td><div class="actions">${ver(f.x)}<button class="btn small" data-keep="${k}">Manter a da planilha</button></div></td></tr>`).join("") +
       diffs.map((f, k) => `<tr>
       <td><span class="cx">${esc(f.x.id)}</span></td><td>${esc(f.x.addr)}</td>
-      <td>A morada no mapa fica a ${Math.round(f.d).toLocaleString("pt-PT")} m do pino${f.r.house ? "" : " (o mapa só achou a rua)"}. Em "Ver no mapa", o círculo azul tracejado mostra onde o mapa põe a morada.</td>
+      <td>A morada no mapa fica a ${Math.round(f.d).toLocaleString("pt-PT")} m do pino${f.r.house ? "" : f.r.onStreet ? " (o pino está longe da rua; o mapa não tem o número da porta)" : " (o mapa só achou a rua)"}.${f.pc ? ` O mapa diz código postal ${esc(f.pc)}, a planilha ${esc(fmtCep(f.x.cep))}.` : ""} Em "Ver no mapa", o círculo azul tracejado mostra onde o mapa põe a morada.</td>
       <td><div class="actions">${ver(f.x)}${useSvg ? "" : `<button class="btn small" data-see="${k}">Ver no mapa</button>`}<button class="btn small okbtn" data-use="${k}">Usar a do mapa</button><button class="btn small" data-ign="${k}">Pino está certo</button></div></td></tr>`).join("") +
+      auto.map((st, k) => { const g = st.items.find((x) => x.geoFix).geoFix; return `<tr>
+      <td>${st.items.map((x) => `<span class="cx">${esc(x.id)}</span>`).join(" ")}</td><td>${esc(st.addr)}</td>
+      <td class="doorok">Pino acertado sozinho: o mapa (${esc(g.src)}) tem esta porta em ${esc(g.name)}, a ${Math.round(g.d).toLocaleString("pt-PT")} m da coordenada da planilha.${g.pc ? ` Código postal certo: ${esc(g.pc)} (a planilha diz ${esc(fmtCep(st.items[0].cep))}).` : ""}</td>
+      <td><div class="actions">${ver(st.items[0])}<button class="btn small" data-unauto="${k}">Voltar à planilha</button></div></td></tr>`; }).join("") +
       moved.map((st, k) => `<tr>
       <td>${st.items.map((x) => `<span class="cx">${esc(x.id)}</span>`).join(" ")}</td><td>${esc(st.addr)}</td>
       <td>Pino movido à mão (${Math.round(hav({ lat: st.items[0].sheetLat, lng: st.items[0].sheetLng }, st) * 1000).toLocaleString("pt-PT")} m da planilha).</td>
@@ -1172,9 +1336,19 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     $("checkBody").querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.use]; movePin(f.st, f.r.lat, f.r.lng); }));
     $("checkBody").querySelectorAll("[data-ign]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.ign]; if (S.seeDiff === f) S.seeDiff = null; S.ignore[f.x.pk] = 1; store.set("rota.ignore", S.ignore); S.diffs = diffs.filter((y) => y !== f); renderCheck(); drawMap(true); }));
     $("checkBody").querySelectorAll("[data-see]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.see]; S.seeDiff = f; drawMap(true); document.querySelector(".mapbox").scrollIntoView({ behavior: "smooth", block: "center" }); lmap.fitBounds(L.latLngBounds([[f.st.lat, f.st.lng], [f.r.lat, f.r.lng]]), { padding: [60, 60], maxZoom: 18 }); }));
+    $("checkBody").querySelectorAll("[data-unauto]").forEach((b) => (b.onclick = () => { auto[+b.dataset.unauto].items.forEach((x) => { const k = memKey(x); if (x.geoFix) { S.geofixOff[k] = 1; delete S.geofix[k]; } }); store.set("rota.geofix", S.geofix); store.set("rota.geofixoff", S.geofixOff); run(); }));
     $("checkBody").querySelectorAll("[data-unmove]").forEach((b) => (b.onclick = () => { moved[+b.dataset.unmove].items.forEach((x) => delete S.pins[x.pk]); store.set("rota.pins", S.pins); run(); }));
     const u = $("undoKeep"); if (u) u.onclick = () => { S.keepOrig.clear(); run(); };
     const fm = $("forgetMem"); if (fm) fm.onclick = () => { if (fm.dataset.sure) { S.mem = {}; store.set("rota.mem", S.mem); run(); } else { fm.dataset.sure = "1"; fm.textContent = "Confirmar: esquecer todas"; } };
+  }
+  // corrigir o pino colando coordenadas ou um link do Google Maps com coordenadas
+  function askPin(st) {
+    const t = prompt(`Onde fica ${stopTitle(st)}?\n\nCole as coordenadas (ex.: 41.6932, -8.8301) ou um link do Google Maps.\nNo Google Maps: toque e segure na casa certa e copie os números que aparecem em cima.\n\nO app memoriza esta morada para as próximas rotas.`);
+    if (t == null || !t.trim()) return;
+    const c = parseCoords(t);
+    if (!c) { alert("Não encontrei coordenadas nesse texto. Links curtos (maps.app.goo.gl) não trazem as coordenadas: copie os números do sítio no Google Maps."); return; }
+    if (hav(c, st) > 50 && !confirm(`Esse ponto fica a ${fmtKm(hav(c, st) * 1000)} km do pino atual. Usar mesmo assim?`)) return;
+    movePin(st, c.lat, c.lng);
   }
   // mover o pino (arrastado ou "usar a do mapa") e recalcular a rota
   function movePin(st, lat, lng) {
@@ -1288,7 +1462,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       return (bk && bk.a === i ? `<tr class="blkrow"><td colspan="5" style="border-left:6px solid ${bk.col}"><b>${esc(blockLine(bk, s.blk))}</b>${bk.loose ? ' <span class="hint">(paradas soltas pelo caminho)</span>' : ""}</td></tr>` : "") + `<tr class=""${stt ? (stt.st === "ok" ? "done" : "fail") : ""}${i === nextIdx ? " next" : ""}">
         <td class="ord">${i + 1}</td>
         <td>${s.items.map((x) => `<span class="cx" title="${esc(x.codigo)}">${esc(x.id)}</span>`).join(" ")}${s.items.length > 1 ? `<br><span class="hint">${s.items.length} volumes</span>` : ""}</td>
-        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${/pudo/i.test(s.tipo) ? ' <span class="hint fail">(ponto de recolha)</span>' : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
+        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.geoFix) ? ' <span class="doorok">(pino acertado pela porta no mapa)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${/pudo/i.test(s.tipo) ? ' <span class="hint fail">(ponto de recolha)</span>' : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
         <td class="num">${i === 0 && S.start.firstIsStart ? "início" : "+" + fmtMin(leg.dur) + "<br>" + (leg.walk ? "🚶 " + Math.round(leg.walk) + " m" : fmtKm(leg.dist) + " km")}</td>
         <td><div class="actions">
           <a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a>
@@ -1296,10 +1470,12 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
           ${useSvg ? "" : `<button class="btn small" data-zoom="${i}">Ver porta</button>`}
           <a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a>
           <span class="row" data-acts="${i}">${stt ? `<button class="btn small" data-undo="${i}">Desfazer</button>` : `<button class="btn small okbtn" data-ok="${i}">✓ Entregue</button><button class="btn small failbtn" data-fail="${i}">✗ Não entregue</button>`}</span>
+          <button class="btn small" data-pin="${i}">📍 Corrigir pino</button>
           <button class="btn small" data-del="${i}">🗑 Excluir</button>
         </div></td></tr>`;
     }).join("");
     $("tbody").querySelectorAll("[data-ok]").forEach((b) => (b.onclick = () => setStatus(S.order[+b.dataset.ok], "ok")));
+    $("tbody").querySelectorAll("[data-pin]").forEach((b) => (b.onclick = () => askPin(S.order[+b.dataset.pin])));
     $("tbody").querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) excludeItems(S.order[+b.dataset.del].items); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } }));
     $("tbody").querySelectorAll("[data-undo]").forEach((b) => (b.onclick = () => setStatus(S.order[+b.dataset.undo], null)));
     $("tbody").querySelectorAll("[data-fail]").forEach((b) => (b.onclick = () => askFail(S.order[+b.dataset.fail], b.parentNode)));
@@ -1319,7 +1495,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   }
   // ao confirmar a entrega: guarda o GPS do telemóvel (se estiver a menos de 500 m do pino) ou o pino corrigido
   function rememberDelivery(st) {
-    st.items.forEach((x) => { if (x.moved || x.fixed) remember(x, st.lat, st.lng, "pino corrigido"); });
+    st.items.forEach((x) => { if (x.moved || x.fixed || x.geoFix) remember(x, st.lat, st.lng, "pino corrigido"); });
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition((p) => {
       const g = { lat: p.coords.latitude, lng: p.coords.longitude };
@@ -1428,10 +1604,13 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   const hnAll = new Map(), hnAreas = new Set();
   const normDoor = (t) => String(t || "").toLowerCase().replace(/\s+/g, "");
   const doorOf = (x) => (S.map.num >= 0 && x.num) || doorNumber(x.end);
-  async function overpass(query) {
+  async function overpassJSON(query) {
     const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const j = await res.json();
+    return res.json();
+  }
+  async function overpass(query) {
+    const j = await overpassJSON(query);
     j.elements.forEach((el) => {
       const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;
       if (lat == null) return;
@@ -1861,7 +2040,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
           ${t ? `<button class="dbtn" id="dUndo" style="grid-column:span 2"><i>↺</i>Desfazer</button>` : `<button class="dbtn fail" id="dFail"><i>✗</i>Não entregue</button><button class="dbtn ok" id="dOk"><i>✓</i>Entregue</button>`}
         </div>
         ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
-        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
+        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dPin">📍 Corrigir pino</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
         <div class="drow"><span class="ic">📦</span><div><b class="dvdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes<br>${s.items.map((y, k) => `<button class="btn small" data-delv="${k}">🗑 Excluir só VDC ${esc(y.id)}</button>`).join(" ")}` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
         ${s.walk ? `<div class="drow walkrow"><span class="ic">${isWalk(s) ? "🚶" : "🅿"}</span><div>${esc(walkText(s).replace(/^\S+\s/, ""))}</div></div>` : ""}
         <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
@@ -1873,6 +2052,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       const go = $("dGo"); if (go) go.onclick = () => { DR.view = vi; if (DR.nav) renderDrive(false); else startNav(); };
       $("dDel").onclick = () => { const b = $("dDel"); if (b.dataset.sure) excludeItems(s.items); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } };
       $("dCard").querySelectorAll("[data-delv]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) excludeItems([s.items[+b.dataset.delv]]); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } }));
+      $("dPin").onclick = () => askPin(s);
       $("dDoor").onclick = () => { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat], zoom: 18 }); };
       if (t) $("dUndo").onclick = () => { DR.view = vi; setStatus(s, null); };
       else {
