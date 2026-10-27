@@ -200,6 +200,10 @@ body.driving .costbtn { display: none; }
 .drow { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; align-items: start; border-top: 1px solid var(--soft); padding-top: 8px; font-size: 15px; overflow-wrap: anywhere; }
 .dvdc { font-size: 22px; font-weight: 800; color: #1f4fd1; }
 .drow .ic { font-weight: 700; color: var(--muted); text-align: center; }
+.walkrow { color: #2f6b1f; font-weight: 600; }
+.walkinfo { color: #2f6b1f; font-weight: 600; }
+.dblk { font: 700 13px/1.3 var(--font-body); padding: 10px 12px 6px; border-left: 6px solid; background: var(--soft); color: var(--ink); }
+tr.blkrow td { background: var(--soft); padding-top: 10px; }
 .dmapwrap { position: relative; min-height: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
 #dmap { position: absolute; inset: 0; }
 .dfab { position: absolute; right: 12px; bottom: 24px; z-index: 800; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--panel); color: #1f6fe5; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; }
@@ -458,7 +462,7 @@ body.driving .costbtn { display: none; }
 
   const S = {
     wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false, excl: store.get("rota.excl", {}), excluded: [],
-    order: [], legs: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
+    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
 
   // estado do modo entrega (ver mais abaixo)
@@ -788,6 +792,116 @@ body.driving .costbtn { display: none; }
     return path.filter((v, idx) => idx > 0 && v !== 0 && v !== fixedEnd);
   }
 
+  // ---------- blocos e grupos a pé ----------
+  // Zona = paradas ligadas por menos de 200 m (em linha reta), no máximo 15 por zona.
+  // A rota é otimizada com uma penalização por cada mudança de zona, para acabar uma zona antes de passar à seguinte.
+  const ZONE_M = 200, ZONE_MAX = 15, ZONE_PEN = 90;
+  function zonesOf(list) {
+    const n = list.length, z = new Array(n).fill(-1);
+    let id = 0;
+    for (let i = 0; i < n; i++) {
+      if (z[i] >= 0) continue;
+      const q = [i]; z[i] = id;
+      while (q.length) { const a = q.pop(); for (let k = 0; k < n; k++) if (z[k] < 0 && hav(list[a], list[k]) * 1000 <= ZONE_M) { z[k] = id; q.push(k); } }
+      id++;
+    }
+    // zona grande demais: corta ao meio pelo lado mais comprido, até ficar com 15 ou menos
+    const split = (idx) => {
+      if (idx.length <= ZONE_MAX) { idx.forEach((i) => (z[i] = id)); id++; return; }
+      const la = idx.map((i) => list[i].lat), lo = idx.map((i) => list[i].lng);
+      const byLat = (Math.max(...la) - Math.min(...la)) * 111 > (Math.max(...lo) - Math.min(...lo)) * 83;
+      const s = idx.slice().sort((a, b) => (byLat ? list[a].lat - list[b].lat : list[a].lng - list[b].lng));
+      split(s.slice(0, s.length >> 1)); split(s.slice(s.length >> 1));
+    };
+    const groups = new Map(); z.forEach((g, i) => { if (!groups.has(g)) groups.set(g, []); groups.get(g).push(i); });
+    for (const idx of groups.values()) if (idx.length > ZONE_MAX) split(idx);
+    return z;
+  }
+  function tourCost(D, order, fixedEnd) {
+    const p = [0].concat(order, fixedEnd >= 0 ? [fixedEnd] : []);
+    let c = 0; for (let i = 1; i < p.length; i++) c += D[p[i - 1]][p[i]]; return c;
+  }
+  // Estacionar e andar: paradas seguidas a menos de 150 m de um ponto central fazem-se a pé.
+  // O carro fica na parada central (a primeira do grupo); as outras fazem-se a pé, com volta ao carro.
+  const WALK_M = 150, WALK_V = 1.2, WALK_F = 1.25, PARK_S = 60, WALK_MAX = 8;
+  const walkM = (a, b) => hav(a, b) * 1000 * WALK_F;
+  function walkPlan(order, todo, M, fixedEnd) {
+    const out = [], st = (n) => todo[n - 1];
+    let i = 0;
+    while (i < order.length) {
+      // estende o grupo enquanto tudo fica a menos de 150 m de uma das paradas (o estacionamento)
+      let best = null;
+      for (let j = i + 1; j < order.length && j - i < WALK_MAX; j++) {
+        const g = order.slice(i, j + 1);
+        if (hav(st(order[i]), st(order[j])) * 1000 > 2 * WALK_M) break;
+        let park = -1, pv = Infinity;
+        g.forEach((n) => { const m = Math.max(...g.map((k) => hav(st(n), st(k)) * 1000)); if (m < pv) { pv = m; park = n; } });
+        if (pv > WALK_M) break;
+        const prev = i ? order[i - 1] : 0, next = j + 1 < order.length ? order[j + 1] : fixedEnd;
+        // de carro: as paradas pela ordem e um estacionamento em cada uma
+        let car = M.dur[prev][g[0]] + (next >= 0 ? M.dur[g[g.length - 1]][next] : 0) + PARK_S * g.length;
+        for (let k = 1; k < g.length; k++) car += M.dur[g[k - 1]][g[k]];
+        // a pé: o carro vai ao estacionamento e sai dele; o resto é volta a pé
+        const walkOrder = [park].concat(g.filter((n) => n !== park));
+        let m = 0; for (let k = 1; k < walkOrder.length; k++) m += walkM(st(walkOrder[k - 1]), st(walkOrder[k]));
+        m += walkM(st(walkOrder[walkOrder.length - 1]), st(park));
+        const foot = M.dur[prev][park] + (next >= 0 ? M.dur[park][next] : 0) + PARK_S + m / WALK_V;
+        if (foot < car) best = { j, walkOrder, m, save: car - foot };
+      }
+      if (best) {
+        const gid = out.length, park = st(best.walkOrder[0]);
+        best.walkOrder.forEach((n) => { st(n).walk = { gid, park, n: best.walkOrder.length, m: best.m, save: best.save }; out.push(n); });
+        i = best.j + 1;
+      } else { out.push(order[i]); i++; }
+    }
+    return out;
+  }
+  const isWalk = (s) => !!(s && s.walk && s.walk.park !== s);
+  // nome da rua para o bloco: sem o número da porta nem o que vem depois, e sem tudo em maiúsculas
+  function blockStreet(end) {
+    let r = streetOf(end); if (!r) return "";
+    r = r.replace(/^(\S+(?:\s+\S+){2,}?)\s+(?<!\bde\s)\d+\b.*$/i, "$1").replace(/\s*\(.*$/, "").trim();
+    if (r === r.toUpperCase()) r = r.toLowerCase().replace(/(^|\s)(\p{L})/gu, (m, sp, c) => sp + c.toUpperCase()).replace(/\s(D[aoe]s?|E)\b/g, (m) => m.toLowerCase());
+    return r;
+  }
+  const BLK_COL = ["#e8590c", "#1971c2", "#2f9e44", "#ae3ec9", "#f08c00", "#0c8599", "#e03131", "#5c7cfa"];
+  // blocos: zonas com 3 ou mais paradas seguidas são um bloco; paradas soltas seguidas juntam-se num bloco de passagem
+  function makeBlocks() {
+    S.blocks = [];
+    const ord = S.order;
+    let i = 0;
+    while (i < ord.length) {
+      let j = i; while (j + 1 < ord.length && ord[j + 1].zone === ord[i].zone) j++;
+      if (j - i + 1 < 3) {
+        j = i;
+        while (j + 1 < ord.length && j - i + 1 < 8 && hav(ord[j], ord[j + 1]) <= 3) {
+          let r = j + 1; while (r + 1 < ord.length && ord[r + 1].zone === ord[j + 1].zone) r++;
+          if (r - j >= 3) break;
+          j = r;
+        }
+      }
+      const b = { a: i, b: j, n: j - i + 1, col: BLK_COL[S.blocks.length % BLK_COL.length], walk: 0, loose: false };
+      const cnt = new Map();
+      for (let k = i; k <= j; k++) { ord[k].blk = S.blocks.length; ord[k].items.forEach((x) => { const r = blockStreet(x.end), key = r.toLowerCase(); if (r) cnt.set(key, { r: (cnt.get(key) || {}).r || r, n: ((cnt.get(key) || {}).n || 0) + 1 }); }); if (isWalk(ord[k])) b.walk++; }
+      const top = [...cnt.values()].sort((p, q) => q.n - p.n).map((p) => p.r);
+      b.name = top.length ? top.slice(0, 2).join(", ") + (top.length > 2 ? ` e mais ${top.length - 2} rua(s)` : "") : "Sem nome de rua";
+      b.loose = new Set(ord.slice(i, j + 1).map((s) => s.zone)).size > 1;
+      S.blocks.push(b);
+      i = j + 1;
+    }
+  }
+  function blockDur(b) { let d = 0; for (let k = b.a; k <= b.b; k++) d += (k > b.a ? (S.legs[k] || {}).dur || 0 : 0) + SERVICE; return d; }
+  const blockLine = (b, k) => `Bloco ${k + 1} de ${S.blocks.length}: ${b.name} · ${b.n} parada(s)${b.walk ? ` · ${b.walk} a pé` : ""} · ~${fmtMin(blockDur(b))}`;
+  function walkText(s) {
+    if (!s.walk) return "";
+    const w = s.walk, pn = S.order.indexOf(w.park) + 1;
+    if (!isWalk(s)) {
+      const others = S.order.filter((o) => o.walk && o.walk.gid === w.gid && o !== s && o.walk.park === s).map((o) => S.order.indexOf(o) + 1);
+      return `🅿 Estacione aqui e faça a pé ${others.length > 1 ? "as paradas " + others.join(", ") : "a parada " + others[0]} (~${Math.round(w.m)} m a pé, poupa ~${fmtMin(w.save)})`;
+    }
+    return `🚶 A pé desde a parada ${pn} (carro estacionado lá)`;
+  }
+
   // ---------- execução ----------
   function log(t) { $("log").textContent = t; }
   function prog(f) { $("prog").style.width = Math.round(f * 100) + "%"; }
@@ -881,6 +995,7 @@ body.driving .costbtn { display: none; }
       log("Calculando tempos entre as entregas…"); prog(0.92);
       // as paradas já entregues (ou não entregues) ficam no início, pela ordem em que foram marcadas;
       // só as que faltam são otimizadas, a partir da última marcada
+      const zs = zonesOf(ok); ok.forEach((g, i) => { g.zone = zs[i]; g.walk = null; });
       const doneG = ok.filter((g) => stOf(g)).sort((a, b) => stOf(a).t - stOf(b).t), todo = ok.filter((g) => !stOf(g));
       const from = doneG.length ? doneG[doneG.length - 1] : start.free ? null : start;
       const endNode = endPt || (roundTrip ? start : null);
@@ -896,18 +1011,34 @@ body.driving .costbtn { display: none; }
         }
         fixedEnd = endNode ? todo.length + 1 : -1;
         orderIdx = optimize(M.dur, fixedEnd);
+        // mesma rota mas a fechar cada zona antes de passar à seguinte, se custar no máximo 3% a mais
+        const n = todo.length;
+        if (new Set(todo.map((g) => g.zone)).size < n) {
+          const Dz = M.dur.map((r, i) => r.map((v, k) => v + (i >= 1 && k >= 1 && i <= n && k <= n && todo[i - 1].zone !== todo[k - 1].zone ? ZONE_PEN : 0)));
+          const alt = optimize(Dz, fixedEnd);
+          if (tourCost(M.dur, alt, fixedEnd) <= tourCost(M.dur, orderIdx, fixedEnd) * 1.03 + 60) orderIdx = alt;
+        }
+        orderIdx = walkPlan(orderIdx, todo, M, fixedEnd);
       }
       S.order = doneG.concat(orderIdx.map((i) => todo[i - 1]));
       if (start.free) { start.lat = S.order[0].lat; start.lng = S.order[0].lng; }
       S.start = start; S.stops = ok; S.source = M ? M.source : S.source;
       S.endPt = endNode; S.roundTrip = roundTrip;
 
-      // pernas: tempo e distância até cada entrega, na ordem
-      const full = [0].concat(orderIdx);
+      // pernas: tempo e distância até cada entrega, na ordem; nas paradas a pé conta o tempo a andar
+      // (dist = só km de carro) e a perna seguinte de carro sai do estacionamento, com a volta a pé ao carro
+      let carAt = 0, footAt = null; S.walkM = 0;
+      const back = () => { const m = footAt && carAt ? walkM(footAt, todo[carAt - 1]) : 0; S.walkM += m; return m / WALK_V; };
       S.legs = doneG.map((g, i) => (i ? est(doneG[i - 1], g) : start.free ? { dur: 0, dist: 0 } : est(start, g)))
-        .concat(orderIdx.map((_, k) => ({ dur: M.dur[full[k]][full[k + 1]], dist: M.dist[full[k]][full[k + 1]] })));
-      if (endNode) S.endLeg = fixedEnd >= 0 ? { dur: M.dur[full[full.length - 1]][fixedEnd], dist: M.dist[full[full.length - 1]][fixedEnd] } : est(S.order[S.order.length - 1], endNode);
+        .concat(orderIdx.map((nd) => {
+          const s = todo[nd - 1];
+          if (isWalk(s)) { const m = walkM(footAt, s); S.walkM += m; footAt = s; return { dur: m / WALK_V, dist: 0, walk: m }; }
+          const l = { dur: M.dur[carAt][nd] + back(), dist: M.dist[carAt][nd] };
+          carAt = nd; footAt = s; return l;
+        }));
+      if (endNode) S.endLeg = fixedEnd >= 0 ? { dur: M.dur[carAt][fixedEnd] + back(), dist: M.dist[carAt][fixedEnd] } : est(S.order[S.order.length - 1], endNode);
       else S.endLeg = null;
+      makeBlocks();
       const tDur = S.legs.reduce((a, l) => a + l.dur, 0) + (S.endLeg ? S.endLeg.dur : 0), tDist = S.legs.reduce((a, l) => a + l.dist, 0) + (S.endLeg ? S.endLeg.dist : 0);
       S.totDur = tDur; S.totDist = tDist;
       // comparação com a ordem original (pela etiqueta numérica, ou pela ordem das linhas), só antes de começar
@@ -921,8 +1052,9 @@ body.driving .costbtn { display: none; }
         S.cmp = { dur: oDur - tDur, dist: oDist - tDist };
       }
       S.nVol = nVol;
+      S.nWalk = S.order.filter(isWalk).length;
       prog(1);
-      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
+      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}, em ${S.blocks.length} bloco(s)${S.nWalk ? `, ${S.nWalk} parada(s) a pé a partir do carro estacionado` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
       renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
       if (wantDrive) openDrive();
     } finally { btn.disabled = false; }
@@ -1152,12 +1284,12 @@ body.driving .costbtn { display: none; }
     // tabela
     $("tbody").innerHTML = S.order.map((s, i) => {
       const leg = S.legs[i] || { dur: 0, dist: 0 };
-      const stt = stOf(s);
-      return `<tr class="${stt ? (stt.st === "ok" ? "done" : "fail") : ""}${i === nextIdx ? " next" : ""}">
+      const stt = stOf(s), bk = S.blocks[s.blk];
+      return (bk && bk.a === i ? `<tr class="blkrow"><td colspan="5" style="border-left:6px solid ${bk.col}"><b>${esc(blockLine(bk, s.blk))}</b>${bk.loose ? ' <span class="hint">(paradas soltas pelo caminho)</span>' : ""}</td></tr>` : "") + `<tr class=""${stt ? (stt.st === "ok" ? "done" : "fail") : ""}${i === nextIdx ? " next" : ""}">
         <td class="ord">${i + 1}</td>
         <td>${s.items.map((x) => `<span class="cx" title="${esc(x.codigo)}">${esc(x.id)}</span>`).join(" ")}${s.items.length > 1 ? `<br><span class="hint">${s.items.length} volumes</span>` : ""}</td>
-        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${/pudo/i.test(s.tipo) ? ' <span class="hint fail">(ponto de recolha)</span>' : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
-        <td class="num">${i === 0 && S.start.firstIsStart ? "início" : "+" + fmtMin(leg.dur) + "<br>" + fmtKm(leg.dist) + " km"}</td>
+        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${/pudo/i.test(s.tipo) ? ' <span class="hint fail">(ponto de recolha)</span>' : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
+        <td class="num">${i === 0 && S.start.firstIsStart ? "início" : "+" + fmtMin(leg.dur) + "<br>" + (leg.walk ? "🚶 " + Math.round(leg.walk) + " m" : fmtKm(leg.dist) + " km")}</td>
         <td><div class="actions">
           <a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a>
           <a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Maps</a>
@@ -1384,7 +1516,7 @@ body.driving .costbtn { display: none; }
       const door = doors.length ? `<span class="door">${esc(doors.join(" / "))}</span>` : "";
       // número VDC = etiqueta do pacote (coluna Label); caixa azul para não confundir com o número da casa
       const vdc = x.s ? `<span class="vdc">VDC ${esc(x.s.items.map((y) => y.id).join(", "))}</span>` : "";
-      const icon = L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${x.kind}${x.s && x.s.items.some((y) => y.moved) ? " moved" : x.s && x.s.items.some((y) => y.fromMem) ? " mem" : ""}">${x.label}</div><div class="tags">${vdc}${door}</div></div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+      const icon = L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${x.kind}${x.s && x.s.items.some((y) => y.moved) ? " moved" : x.s && x.s.items.some((y) => y.fromMem) ? " mem" : ""}"${x.s && S.blocks[x.s.blk] ? ` style="box-shadow:0 0 0 3px ${S.blocks[x.s.blk].col}"` : ""}>${x.label}</div><div class="tags">${vdc}${door}</div></div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
       const m = L.marker([x.p.lat, x.p.lng], { icon, zIndexOffset: x.kind === "next" ? 1000 : 0, draggable: !!x.s }).addTo(layer);
       if (x.s) m.on("dragend", () => {
         const to = m.getLatLng(), st = x.s;
@@ -1573,6 +1705,13 @@ body.driving .costbtn { display: none; }
     if (!tg || !o || DR.legBusy) return;
     const key = legKeyOf(o, tg);
     // no modo navegação só se pede caminho novo quando o carro sai dele; fora dele, a cada 200 m
+    // parada a pé (e já perto dela): linha reta desde onde está, sem caminho de carro
+    if (isWalk(tg.p) && hav(o.p, tg.p) * 1000 <= 400) {
+      if (DR.leg && DR.leg.key === key && !(o.gps && DR.legFrom && hav(DR.legFrom, o.p) * 1000 > 30)) return;
+      const m = walkM(o.p, tg.p);
+      DR.leg = { key, geom: null, dur: m / WALK_V, dist: m, walk: true, t: Date.now() }; DR.legFrom = { lat: o.p.lat, lng: o.p.lng }; DR.offRoute = false;
+      return;
+    }
     const moved = (o.gps && DR.legFrom && (DR.nav ? DR.offRoute : hav(DR.legFrom, o.p) * 1000 > 200)) || (DR.nav && DR.leg && !DR.leg.geom && Date.now() - DR.leg.t > 20000);
     if (DR.leg && DR.leg.key === key && !moved) return;
     DR.legBusy = true;
@@ -1689,8 +1828,9 @@ body.driving .costbtn { display: none; }
     const row = (cls, num, time, title, sub, tag, i) => `<button class="dl ${cls}${i != null && i === vi ? " sel" : ""}"${i != null ? ` data-i="${i}"` : ""}><div class="dt"><b>${num}</b><span>${time}</span></div><div class="dx"><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</div>${tag ? `<span class="dtag">${esc(tag)}</span>` : "<span></span>"}</button>`;
     let html = S.start.firstIsStart ? "" : row("", "●", "", "Ponto de partida", S.start.label || "", "", null);
     html += S.order.map((s, i) => {
-      const t = stOf(s), cep = s.cep ? fmtCep(s.cep) : "";
-      return row(t ? t.st : "", String(i + 1).padStart(2, "0"), t ? (t.st === "ok" ? "✓ " : "✗ ") + hhmm(t.t) : eta[i] ? hhmm(eta[i]) : "", stopTitle(s), [cep, s.nome, s.items.length > 1 ? s.items.length + " volumes" : ""].filter(Boolean).join(" · "), "VDC " + s.items.map((x) => x.id).join(", "), i);
+      const t = stOf(s), cep = s.cep ? fmtCep(s.cep) : "", bk = S.blocks[s.blk];
+      const head = bk && bk.a === i ? `<div class="dblk" style="border-left-color:${bk.col}">${esc(blockLine(bk, s.blk))}</div>` : "";
+      return head + row(t ? t.st : "", String(i + 1).padStart(2, "0"), t ? (t.st === "ok" ? "✓ " : "✗ ") + hhmm(t.t) : eta[i] ? hhmm(eta[i]) : "", (isWalk(s) ? "🚶 " : s.walk ? "🅿 " : "") + stopTitle(s), [cep, s.nome, s.items.length > 1 ? s.items.length + " volumes" : ""].filter(Boolean).join(" · "), "VDC " + s.items.map((x) => x.id).join(", "), i);
     }).join("");
     if (S.endPt && !S.roundTrip) html += row(tg && tg.end ? "sel" : "", "F", end ? hhmm(end) : "", "Destino final", S.endPt.label || "", "", null);
     $("dList").innerHTML = html;
@@ -1714,7 +1854,7 @@ body.driving .costbtn { display: none; }
       const s = S.order[vi], t = stOf(s), x = s.items[0], isT = tg && tg.i === vi;
       const leg = isT && DR.leg && DR.leg.key === legKeyOf(legOrigin(tg), tg) ? DR.leg : null;
       card.innerHTML = `<div class="dch"><h2>${esc(stopTitle(s))}</h2>${DR.view >= 0 ? '<button class="dclose" id="dClose" aria-label="Fechar">✕</button>' : ""}</div>
-        <div class="dsub"><span class="dot ${t ? t.st : ""}"></span>${vi + 1}/${N} · ${t ? statusBadge(s) + " " + hhmm(t.t) : (eta[vi] ? "previsto " + hhmm(eta[vi]) : "")}${leg ? ` · ${fmtMin(leg.dur)} · ${fmtKm(leg.dist)} km` : ""}</div>
+        <div class="dsub"><span class="dot ${t ? t.st : ""}"></span>${vi + 1}/${N} · ${t ? statusBadge(s) + " " + hhmm(t.t) : (eta[vi] ? "previsto " + hhmm(eta[vi]) : "")}${leg ? ` · ${fmtMin(leg.dur)} · ${leg.walk ? "🚶 " + Math.round(leg.dist) + " m a pé" : fmtKm(leg.dist) + " km"}` : ""}</div>
         <div class="dacts">
           ${t ? `<a class="dbtn nav" target="_blank" rel="noopener" href="${gmapsOne(s)}"><i>➤</i>Google Maps</a>` : `<button class="dbtn nav" id="dGo"><i>➤</i>${DR.nav ? "A navegar" : "Navegar"}</button>`}
           <button class="dbtn" id="dNext"><i>⇥</i>Próxima</button>
@@ -1723,7 +1863,9 @@ body.driving .costbtn { display: none; }
         ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
         <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
         <div class="drow"><span class="ic">📦</span><div><b class="dvdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes<br>${s.items.map((y, k) => `<button class="btn small" data-delv="${k}">🗑 Excluir só VDC ${esc(y.id)}</button>`).join(" ")}` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
+        ${s.walk ? `<div class="drow walkrow"><span class="ic">${isWalk(s) ? "🚶" : "🅿"}</span><div>${esc(walkText(s).replace(/^\S+\s/, ""))}</div></div>` : ""}
         <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
+        ${S.blocks[s.blk] ? `<div class="drow"><span class="ic">▦</span><div>${esc(blockLine(S.blocks[s.blk], s.blk))}</div></div>` : ""}
         <div class="drow"><span class="ic">ID</span><div>${s.items.map((y) => esc(y.codigo || y.id)).join("<br>")}<br><span class="hint">Linha ${s.items.map((y) => y.i + 2).join(", ")} da planilha</span></div></div>
         ${s.obs ? `<div class="drow"><span class="ic">ℹ</span><div>${esc(s.obs)}</div></div>` : ""}`;
       const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(); };
@@ -1799,9 +1941,9 @@ body.driving .costbtn { display: none; }
     DR.map.getSource("leg").setData(lineFeat(tg && o ? g || [[o.p.lat, o.p.lng], [tg.p.lat, tg.p.lng]] : []));
     DR.map.setPaintProperty("leg", "line-dasharray", g ? null : [1.5, 1.5]);
     DR.marks.forEach((m) => m.remove()); DR.marks = [];
-    const pin = (p, cls, label, tags, z, onClick) => {
+    const pin = (p, cls, label, tags, z, onClick, col) => {
       const el = document.createElement("div"); el.style.zIndex = 300 + z;
-      el.innerHTML = `<div class="pinwrap"><div class="pin ${cls}">${label}</div>${tags || ""}</div>`;
+      el.innerHTML = `<div class="pinwrap"><div class="pin ${cls}"${col ? ` style="box-shadow:0 0 0 3px ${col}"` : ""}>${label}</div>${tags || ""}</div>`;
       if (onClick) el.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
       DR.marks.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([p.lng, p.lat]).addTo(DR.map));
     };
@@ -1810,7 +1952,7 @@ body.driving .costbtn { display: none; }
     S.order.forEach((s, i) => {
       const t = stOf(s), isT = tg && tg.i === i;
       const tags = isT ? `<div class="tags"><span class="vdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</span><span class="door">${esc(stopTitle(s))}</span></div>` : "";
-      pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(); });
+      pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", (isWalk(s) ? "🚶" : "") + String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(); }, S.blocks[s.blk] && S.blocks[s.blk].col);
     });
     if (fit && tg) {
       const b = new maplibregl.LngLatBounds([tg.p.lng, tg.p.lat], [tg.p.lng, tg.p.lat]); if (o) b.extend([o.p.lng, o.p.lat]);
