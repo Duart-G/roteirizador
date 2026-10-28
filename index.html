@@ -462,7 +462,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
 
   const S = {
     wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false, excl: store.get("rota.excl", {}), excluded: [],
-    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), far: [], farOk: {}, geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
+    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), far: [], farOk: {}, dc: [], dcOk: {}, geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
 
   // estado do modo entrega (ver mais abaixo)
@@ -535,7 +535,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     S.example = false; $("exampleBanner").hidden = true; S.fileName = fileName; S.excl = {}; store.set("rota.excl", S.excl);
     loadTable(t.headers, t.rows);
     $("fileInfo").textContent = `${fileName}: ${S.rows.length} entregas, ${S.headers.length} colunas.`;
-    S.order = []; S.fix = {}; S.far = []; S.farOk = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
+    S.order = []; S.fix = {}; S.far = []; S.farOk = {}; S.dc = []; S.dcOk = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
     log("Planilha carregada. Confira as colunas e toque em Calcular melhor rota.");
     if (S.autoRun) { S.autoRun = false; S.openDrive = true; run(); }
   }
@@ -936,6 +936,9 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         log("Os serviços de localização não responderam. Abra o app pelo arquivo baixado (fora do Claude) ou inclua colunas de latitude e longitude na planilha.");
         prog(0); return;
       }
+      // volumes com destino "distribution_center" (ex.: Primor Tiendas para R. do Pinhal 145, Maia) voltam ao armazém: não são entregas da rota
+      S.dc = stops.filter((s) => /distribution|centro de distribui|armaz[eé]m|warehouse|depot/i.test(s.tipo) && !S.dcOk[s.pk] && !s.manual);
+      S.dc.forEach((s) => { s.lat = NaN; s.lng = NaN; });
       markFar(stops);
       log("Conferindo as coordenadas com os códigos postais…");
       await checkPostal(stops);
@@ -957,7 +960,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         const h = keep[0]; h.items = keep; h.ids = keep.length > 1 ? keep.map((x) => x.id) : undefined; ok.push(h);
       });
       const nVol = ok.reduce((a, g) => a + g.items.length, 0);
-      const bad = stops.filter((s) => !isFinite(s.lat) && !s.far);
+      const bad = stops.filter((s) => !isFinite(s.lat) && !s.far && !S.dc.includes(s));
       renderFails(bad);
       if (!ok.length) { log(S.excluded.length ? "Todos os pacotes foram excluídos. Toque em Repor excluídos." : "Nenhuma entrega foi localizada. Confira as colunas de CEP e endereço."); prog(0); S.order = []; renderResult(); clearMap(); return; }
 
@@ -1061,7 +1064,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       S.nVol = nVol;
       S.nWalk = S.order.filter(isWalk).length;
       prog(1);
-      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}, em ${S.blocks.length} bloco(s)${S.nWalk ? `, ${S.nWalk} parada(s) a pé a partir do carro estacionado` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}${S.far.length ? `, ${S.far.length} pacote(s) postos de lado por estarem longe das outras entregas (veja "Moradas conferidas")` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
+      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}, em ${S.blocks.length} bloco(s)${S.nWalk ? `, ${S.nWalk} parada(s) a pé a partir do carro estacionado` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}${S.dc.length ? `, ${S.dc.length} volume(s) para levar ao armazém (fora da rota)` : ""}${S.far.length ? `, ${S.far.length} pacote(s) postos de lado por estarem longe das outras entregas (veja "Moradas conferidas")` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
       renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
       if (wantDrive) openDrive();
     } finally { btn.disabled = false; }
@@ -1330,13 +1333,18 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     const moved = S.order.filter((st) => st.items.some((x) => x.moved));
     const auto = S.order.filter((st) => st.items.some((x) => x.geoFix && !x.moved));
     const errs = errorRows();
-    box.hidden = !S.order.length || (!errs.length && !S.keepOrig.size && !$("verifyHint").textContent);
+    const dc = S.dc || [];
+    box.hidden = !S.order.length || (!errs.length && !dc.length && !S.keepOrig.size && !$("verifyHint").textContent);
     $("checkHint").textContent = errs.length
       ? `${errs.length} problema(s) de morada nesta rota. Confira antes de sair e baixe o relatório para enviar à empresa.`
       : "Nenhum problema de morada encontrado até agora.";
     const ver = (x) => `<a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.addr)}">Ver morada</a>`;
     const far = S.far || [];
     $("checkBody").innerHTML =
+      (dc.length ? `<tr>
+      <td>${dc.map((x) => `<span class="cx">${esc(x.id)}</span>`).join(" ")}</td><td>${esc([...new Set(dc.map((x) => x.end))].join(" · "))}${dc[0].nome ? "<br>" + esc(dc[0].nome) : ""}</td>
+      <td class="doorok">${dc.length} volume(s) com destino ao armazém / centro de distribuição (tipo de morada "${esc(dc[0].tipo)}" na planilha). Não são entregas a clientes: ficaram fora da rota. Leve-os de volta ao armazém.</td>
+      <td><div class="actions"><button class="btn small" id="dcIn">Incluir na rota</button></div></td></tr>` : "") +
       far.map((x, k) => `<tr>
       <td><span class="cx">${esc(x.id)}</span></td><td>${esc(x.addr)}${x.nome ? "<br>" + esc(x.nome) : ""}</td>
       <td class="fail">Posta fora da rota: fica a ${fmtKm(x.far.km * 1000)} km das outras entregas${x.far.depot ? ", ao lado do ponto de partida (deve ser a morada do armazém)" : " (deve ser a morada do armazém ou do remetente, não a do cliente)"}. Escreva a morada certa ou cole as coordenadas:<br><input type="text" data-farin="${k}" aria-label="Morada certa de ${esc(x.id)}" placeholder="Rua, nº, código postal ou 41.69, -8.83" style="width:100%;margin-top:4px"></td>
@@ -1359,6 +1367,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       <td><div class="actions"><button class="btn small" data-unmove="${k}">Voltar à planilha</button></div></td></tr>`).join("") +
       (Object.keys(S.mem).length ? `<tr><td colspan="4" class="hint">${Object.keys(S.mem).length} morada(s) memorizadas de entregas anteriores; ${S.order.filter((st) => st.items.some((x) => x.fromMem)).length} usadas nesta rota (contorno verde no mapa). <button class="btn small" id="forgetMem">Esquecer todas</button></td></tr>` : "") +
       (S.keepOrig.size ? `<tr><td colspan="4" class="hint">${S.keepOrig.size} mantida(s) como na planilha. <button class="btn small" id="undoKeep">Conferir de novo</button></td></tr>` : "");
+    const di = $("dcIn"); if (di) di.onclick = () => { dc.forEach((x) => { S.dcOk[x.pk] = 1; S.farOk[x.pk] = 1; }); run(); };
     $("checkBody").querySelectorAll("[data-faruse]").forEach((b) => (b.onclick = () => {
       const k = +b.dataset.faruse, v = $("checkBody").querySelector(`[data-farin="${k}"]`).value.trim(); if (!v) return;
       S.fix[far[k].i] = v; run();
