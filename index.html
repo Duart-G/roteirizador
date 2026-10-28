@@ -215,6 +215,9 @@ body.driving .costbtn { display: none; }
 tr.blkrow td { background: var(--soft); padding-top: 10px; }
 .dmapwrap { position: relative; min-height: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
 #dmap { position: absolute; inset: 0; }
+.dzoom { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 800; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.dzoom button { width: 48px; height: 48px; border: 0; background: var(--panel); color: var(--ink); font: 600 28px/1 var(--font-body); cursor: pointer; }
+.dzoom button + button { border-top: 1px solid var(--line); }
 .dfab { position: absolute; right: 12px; bottom: 24px; z-index: 800; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--panel); color: #1f6fe5; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; }
 .dnextbar { position: absolute; left: 12px; bottom: 24px; right: 72px; z-index: 800; display: flex; }
 .dnextbar button { font: inherit; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--panel); color: var(--ink); border: 0; border-radius: 10px; padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; }
@@ -394,6 +397,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     <div class="dnextbar" id="dNextBar"></div>
     <div class="dnav" id="dNav" hidden></div>
     <div class="dnavbar" id="dNavBar" hidden></div>
+    <div class="dzoom"><button id="dZoomIn" title="Aproximar" aria-label="Aproximar">+</button><button id="dZoomOut" title="Afastar" aria-label="Afastar">−</button></div>
     <button class="dfab" id="dLocate" title="Mostrar a minha posição" aria-label="Mostrar a minha posição">◎</button>
   </div>
 </div>
@@ -475,7 +479,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   };
 
   // estado do modo entrega (ver mais abaixo)
-  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0, nav: false, voice: store.get("rota.voz", 1) === 1, lock: null, offN: 0, offRoute: false, northUp: store.get("rota.norte", 0) === 1, ready: false };
+  const DR = { on: false, map: null, layer: null, meLayer: null, me: null, watch: null, view: -1, leg: null, legFrom: null, legBusy: false, fitKey: "", failing: false, follow: false, lastDraw: 0, nav: false, voice: store.get("rota.voz", 1) === 1, lock: null, offN: 0, offRoute: false, northUp: store.get("rota.norte", 0) === 1, navZoom: store.get("rota.navzoom", null), ready: false };
 
   // ---------- exemplo ----------
   const EXAMPLE = {
@@ -1451,14 +1455,15 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   }
   function redrawPins() { if (S.order.length) drawMap(true); if (DR.on) renderDrive(false); }
   $("pinHintNo").onclick = () => { S.unlock = null; $("pinHint").hidden = true; redrawPins(); };
-  // recolha (seta para cima) ou entrega (seta para baixo); vem do tipo de morada da planilha e pode ser trocado à mão
-  const isPickupItem = (x) => (S.kindOv[x.pk] ? S.kindOv[x.pk] === "up" : /pudo|recolh|pick.?up|recogida|collect|devolu|return|revers/i.test(x.tipo || ""));
+  // só os pontos PUDO (e os trocados à mão) levam caixa com seta: para cima = recolher, para baixo = deixar
+  const isPickupItem = (x) => (S.kindOv[x.pk] ? S.kindOv[x.pk] === "up" : /recolh|pick.?up|recogida|collect|devolu|return|revers/i.test(x.tipo || ""));
   const isPickup = (s) => !!s && s.items.length > 0 && s.items.every(isPickupItem);
+  const hasBadge = (s) => !!s && s.items.some((x) => S.kindOv[x.pk] || /pudo|recolh|pick.?up|recogida|collect|devolu|return|revers/i.test(x.tipo || ""));
   function kindBadge(s) {
-    if (!s) return "";
+    if (!hasBadge(s)) return "";
     const up = isPickup(s);
     const arrow = up ? '<path d="M10 9V2M6.8 5.2 10 2l3.2 3.2"/>' : '<path d="M10 2v7M6.8 5.8 10 9l3.2-3.2"/>';
-    return `<span class="kb ${up ? "up" : "down"}" title="${up ? "Recolha" : "Entrega"}"><svg viewBox="0 0 20 20">${arrow}<rect x="3.5" y="11" width="13" height="7" rx="1"/></svg></span>`;
+    return `<span class="kb ${up ? "up" : "down"}" title="${up ? "Recolher" : "Deixar"}"><svg viewBox="0 0 20 20">${arrow}<rect x="3.5" y="11" width="13" height="7" rx="1"/></svg></span>`;
   }
   function toggleKind(s) {
     const up = !isPickup(s);
@@ -1571,7 +1576,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       return (bk && bk.a === i ? `<tr class="blkrow"><td colspan="5" style="border-left:6px solid ${bk.col}"><b>${esc(blockLine(bk, s.blk))}</b>${bk.loose ? ' <span class="hint">(paradas soltas pelo caminho)</span>' : ""}</td></tr>` : "") + `<tr class=""${stt ? (stt.st === "ok" ? "done" : "fail") : ""}${i === nextIdx ? " next" : ""}">
         <td class="ord">${i + 1}</td>
         <td>${s.items.map((x) => `<span class="cx" title="${esc(x.codigo)}">${esc(x.id)}</span>`).join(" ")}${s.items.length > 1 ? `<br><span class="hint">${s.items.length} volumes</span>` : ""}</td>
-        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.geoFix) ? ' <span class="doorok">(pino acertado pela porta no mapa)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${isPickup(s) ? ' <span class="hint fail">(recolha ↑)</span>' : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
+        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.geoFix) ? ' <span class="doorok">(pino acertado pela porta no mapa)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${hasBadge(s) ? ` <span class="hint fail">(${/pudo/i.test(s.tipo) ? "ponto PUDO: " : ""}${isPickup(s) ? "recolher ↑" : "deixar ↓"})</span>` : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
         <td class="num">${i === 0 && S.start.firstIsStart ? "início" : "+" + fmtMin(leg.dur) + "<br>" + (leg.walk ? "🚶 " + Math.round(leg.walk) + " m" : fmtKm(leg.dist) + " km")}</td>
         <td><div class="actions">
           <a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a>
@@ -1817,7 +1822,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       }
       if (x.s) m.on("popupopen", (e) => { const b = e.popup.getElement().querySelector("[data-kind]"); if (b) b.onclick = () => { lmap.closePopup(); toggleKind(x.s); }; });
       m.on("click", () => { if (tapIgnored()) m.closePopup(); });
-      m.bindPopup(x.s ? `<b>${esc(x.label)}. ${esc(x.s.items.map((y) => y.id).join(", "))}</b><br>${esc(x.s.nome)}<br>${esc(x.s.addr)}${doorText(x.s) ? "<br>" + doorText(x.s) : ""}${stOf(x.s) ? "<br>" + statusBadge(x.s) : ""}<br><a target="_blank" rel="noopener" href="${wazeUrl(x.s)}">Waze</a> · <a target="_blank" rel="noopener" href="${gmapsOne(x.s)}">Google Maps</a> · <a target="_blank" rel="noopener" href="${streetView(x.s)}">Street View</a><br><button class="btn small" data-kind>${isPickup(x.s) ? "Marcar como entrega ↓" : "Marcar como recolha ↑"}</button><br><span class="hint">Para corrigir o pino: segure-o, arraste e toque nele para fixar.</span>` : (x.label === "F" ? "<b>Ponto final</b><br>" + esc(S.endPt.label) : "<b>Ponto de partida</b><br>" + esc(S.start.label)));
+      m.bindPopup(x.s ? `<b>${esc(x.label)}. ${esc(x.s.items.map((y) => y.id).join(", "))}</b><br>${esc(x.s.nome)}<br>${esc(x.s.addr)}${doorText(x.s) ? "<br>" + doorText(x.s) : ""}${stOf(x.s) ? "<br>" + statusBadge(x.s) : ""}<br><a target="_blank" rel="noopener" href="${wazeUrl(x.s)}">Waze</a> · <a target="_blank" rel="noopener" href="${gmapsOne(x.s)}">Google Maps</a> · <a target="_blank" rel="noopener" href="${streetView(x.s)}">Street View</a><br><button class="btn small" data-kind>${isPickup(x.s) ? "Marcar como deixar ↓" : "Marcar como recolher ↑"}</button><br><span class="hint">Para corrigir o pino: segure-o, arraste e toque nele para fixar.</span>` : (x.label === "F" ? "<b>Ponto final</b><br>" + esc(S.endPt.label) : "<b>Ponto de partida</b><br>" + esc(S.start.label)));
     });
     if (!keepView) lmap.fitBounds(L.latLngBounds(line), { padding: [30, 30] });
   }
@@ -2150,7 +2155,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
           ${t ? `<button class="dbtn" id="dUndo" style="grid-column:span 2"><i>↺</i>Desfazer</button>` : `<button class="dbtn fail" id="dFail"><i>✗</i>Não entregue</button><button class="dbtn ok" id="dOk"><i>✓</i>Entregue</button>`}
         </div>
         ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
-        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dPin">📍 Corrigir pino</button><button class="btn small" id="dKind">${isPickup(s) ? "Marcar como entrega ↓" : "Marcar como recolha ↑"}</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
+        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dPin">📍 Corrigir pino</button><button class="btn small" id="dKind">${isPickup(s) ? "Marcar como deixar ↓" : "Marcar como recolher ↑"}</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
         <div class="drow"><span class="ic">📦</span><div><b class="dvdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes<br>${s.items.map((y, k) => `<button class="btn small" data-delv="${k}">🗑 Excluir só VDC ${esc(y.id)}</button>`).join(" ")}` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
         ${s.walk ? `<div class="drow walkrow"><span class="ic">${isWalk(s) ? "🚶" : "🅿"}</span><div>${esc(walkText(s).replace(/^\S+\s/, ""))}</div></div>` : ""}
         <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
@@ -2220,7 +2225,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   function camera(pos, h) {
     if (!DR.nav) { DR.map.jumpTo({ center: [pos.lng, pos.lat] }); return; }
     const north = DR.northUp || h == null;
-    DR.map.jumpTo({ center: [pos.lng, pos.lat], bearing: north ? 0 : h, pitch: north ? 0 : 55, zoom: Math.max(DR.map.getZoom(), 16.5), padding: { top: Math.round(DR.map.getContainer().clientHeight * 0.4), bottom: 0, left: 0, right: 0 } });
+    DR.map.jumpTo({ center: [pos.lng, pos.lat], bearing: north ? 0 : h, pitch: north ? 0 : 55, zoom: DR.navZoom ?? Math.max(DR.map.getZoom(), 16.5), padding: { top: Math.round(DR.map.getContainer().clientHeight * 0.4), bottom: 0, left: 0, right: 0 } });
   }
   function drawDrive(tg, fit) {
     if (!DR.map || !DR.ready) return;
@@ -2281,6 +2286,15 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     else { startGps(); renderDrive(true); }
   };
   $("driveBtn").onclick = openDrive;
+  // + / −: na navegação a câmara mantém o zoom escolhido (perto ou longe da seta)
+  function zoomBy(d) {
+    if (!DR.map) return;
+    const z = Math.min(20, Math.max(3, DR.map.getZoom() + d));
+    if (DR.nav) { DR.navZoom = z; store.set("rota.navzoom", z); if (DR.follow && DR.shown) { camera(DR.shown, DR.shownH); return; } }
+    DR.map.easeTo({ zoom: z, duration: 250 });
+  }
+  $("dZoomIn").onclick = () => zoomBy(1);
+  $("dZoomOut").onclick = () => zoomBy(-1);
 
   // estilo escuro parecido com o Waze, com mapas vetoriais grátis (OpenFreeMap, sem chave);
   // se não carregarem, mostra os mapas Esri por baixo
