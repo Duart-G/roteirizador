@@ -462,7 +462,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
 
   const S = {
     wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false, excl: store.get("rota.excl", {}), excluded: [],
-    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
+    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), far: [], farOk: {}, geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
 
   // estado do modo entrega (ver mais abaixo)
@@ -535,7 +535,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     S.example = false; $("exampleBanner").hidden = true; S.fileName = fileName; S.excl = {}; store.set("rota.excl", S.excl);
     loadTable(t.headers, t.rows);
     $("fileInfo").textContent = `${fileName}: ${S.rows.length} entregas, ${S.headers.length} colunas.`;
-    S.order = []; S.fix = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
+    S.order = []; S.fix = {}; S.far = []; S.farOk = {}; S.fixed = []; S.diffs = []; S.verifyToken = null; $("verifyHint").textContent = ""; S.keepOrig = new Set(); kmTouched = delTouched = false; renderResult(); clearMap(); $("fails").innerHTML = "";
     log("Planilha carregada. Confira as colunas e toque em Calcular melhor rota.");
     if (S.autoRun) { S.autoRun = false; S.openDrive = true; run(); }
   }
@@ -920,6 +920,8 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       if (!S.example) store.set("rota.sheet", { name: S.fileName, headers: S.headers, rows: S.rows, map: S.map });
       if (S.map.lat < 0 && S.map.coord < 0 && S.map.cep < 0 && S.map.end < 0) { log("Escolha pelo menos a coluna de CEP ou de endereço na etapa 2."); return; }
       const stops = S.rows.map(rowToStop);
+      // morada corrigida à mão (texto ou coordenadas) substitui a da planilha
+      stops.forEach((s) => { if (S.fix[s.i]) { const c = parseCoords(S.fix[s.i]); s.lat = c ? c.lat : NaN; s.lng = c ? c.lng : NaN; s.manual = true; } });
       const need = stops.filter((s) => !isFinite(s.lat));
       let k = 0, netFail = 0;
       for (const s of need) {
@@ -934,6 +936,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         log("Os serviços de localização não responderam. Abra o app pelo arquivo baixado (fora do Claude) ou inclua colunas de latitude e longitude na planilha.");
         prog(0); return;
       }
+      markFar(stops);
       log("Conferindo as coordenadas com os códigos postais…");
       await checkPostal(stops);
       // volumes no mesmo local viram uma única parada
@@ -954,7 +957,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         const h = keep[0]; h.items = keep; h.ids = keep.length > 1 ? keep.map((x) => x.id) : undefined; ok.push(h);
       });
       const nVol = ok.reduce((a, g) => a + g.items.length, 0);
-      const bad = stops.filter((s) => !isFinite(s.lat));
+      const bad = stops.filter((s) => !isFinite(s.lat) && !s.far);
       renderFails(bad);
       if (!ok.length) { log(S.excluded.length ? "Todos os pacotes foram excluídos. Toque em Repor excluídos." : "Nenhuma entrega foi localizada. Confira as colunas de CEP e endereço."); prog(0); S.order = []; renderResult(); clearMap(); return; }
 
@@ -1058,10 +1061,28 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       S.nVol = nVol;
       S.nWalk = S.order.filter(isWalk).length;
       prog(1);
-      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}, em ${S.blocks.length} bloco(s)${S.nWalk ? `, ${S.nWalk} parada(s) a pé a partir do carro estacionado` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
+      log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}, em ${S.blocks.length} bloco(s)${S.nWalk ? `, ${S.nWalk} parada(s) a pé a partir do carro estacionado` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}${S.far.length ? `, ${S.far.length} pacote(s) postos de lado por estarem longe das outras entregas (veja "Moradas conferidas")` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
       renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
       if (wantDrive) openDrive();
     } finally { btn.disabled = false; }
+  }
+
+  // ---------- paradas longe de todas as outras ----------
+  // Às vezes a planilha traz a morada do armazém ou do remetente (ex.: R. do Pinhal 145, 4470-640 Maia) em vez da do cliente.
+  // Uma parada a mais de 25 km do centro das entregas (ou 4× a distância mediana) fica fora da rota até ser corrigida.
+  function markFar(stops) {
+    S.far = [];
+    const ok = stops.filter((s) => isFinite(s.lat));
+    if (ok.length < 5) return;
+    const c = center(ok), ds = ok.map((s) => hav(s, c)).sort((a, b) => a - b);
+    const lim = Math.max(25, 4 * median(ds));
+    const far = ok.filter((s) => hav(s, c) > lim && !s.moved && !s.manual && !S.farOk[s.pk]);
+    if (far.length > ok.length * 0.4) return;
+    const st = S.start && isFinite(S.start.lat) ? S.start : null;
+    far.forEach((s) => {
+      s.far = { km: hav(s, c), lat: s.lat, lng: s.lng, depot: st ? hav(s, st) < 5 : false };
+      s.lat = NaN; s.lng = NaN; S.far.push(s);
+    });
   }
 
   // ---------- conferência: coordenada x código postal ----------
@@ -1293,6 +1314,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
   function errorRows() {
     const rows = [];
     const add = (tipo, x, usada, d, extra) => rows.push({ tipo, x, usada, d, extra });
+    (S.far || []).forEach((x) => add("Morada fora da área da rota (provável armazém ou remetente)", x, null, x.far.km * 1000, "Fica a " + fmtKm(x.far.km * 1000) + " km das outras entregas; posta de lado"));
     (S.fixed || []).forEach((f) => add("Coordenada fora da zona do código postal", f.x, { lat: f.x.lat, lng: f.x.lng }, f.d * 1000, "Corrigida com " + f.how));
     (S.diffs || []).forEach((f) => add(`Morada no mapa a ${Math.round(f.d)} m do pino`, f.x, f.r, f.d, (f.r.house ? "Mapa encontrou a porta" : "Mapa só encontrou a rua") + (f.pc ? "; código postal no mapa: " + f.pc : "")));
     S.order.forEach((st) => st.items.forEach((x) => {
@@ -1313,7 +1335,12 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       ? `${errs.length} problema(s) de morada nesta rota. Confira antes de sair e baixe o relatório para enviar à empresa.`
       : "Nenhum problema de morada encontrado até agora.";
     const ver = (x) => `<a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.addr)}">Ver morada</a>`;
+    const far = S.far || [];
     $("checkBody").innerHTML =
+      far.map((x, k) => `<tr>
+      <td><span class="cx">${esc(x.id)}</span></td><td>${esc(x.addr)}${x.nome ? "<br>" + esc(x.nome) : ""}</td>
+      <td class="fail">Posta fora da rota: fica a ${fmtKm(x.far.km * 1000)} km das outras entregas${x.far.depot ? ", ao lado do ponto de partida (deve ser a morada do armazém)" : " (deve ser a morada do armazém ou do remetente, não a do cliente)"}. Escreva a morada certa ou cole as coordenadas:<br><input type="text" data-farin="${k}" aria-label="Morada certa de ${esc(x.id)}" placeholder="Rua, nº, código postal ou 41.69, -8.83" style="width:100%;margin-top:4px"></td>
+      <td><div class="actions"><button class="btn small okbtn" data-faruse="${k}">Usar</button><button class="btn small" data-farok="${k}">Incluir mesmo assim</button></div></td></tr>`).join("") +
       list.map((f, k) => `<tr>
       <td><span class="cx">${esc(f.x.id)}</span></td><td>${esc(f.x.addr)}</td>
       <td>Coordenada a ${fmtKm(f.d * 1000)} km da zona do código postal. Usei ${esc(f.how)}.</td>
@@ -1332,6 +1359,11 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       <td><div class="actions"><button class="btn small" data-unmove="${k}">Voltar à planilha</button></div></td></tr>`).join("") +
       (Object.keys(S.mem).length ? `<tr><td colspan="4" class="hint">${Object.keys(S.mem).length} morada(s) memorizadas de entregas anteriores; ${S.order.filter((st) => st.items.some((x) => x.fromMem)).length} usadas nesta rota (contorno verde no mapa). <button class="btn small" id="forgetMem">Esquecer todas</button></td></tr>` : "") +
       (S.keepOrig.size ? `<tr><td colspan="4" class="hint">${S.keepOrig.size} mantida(s) como na planilha. <button class="btn small" id="undoKeep">Conferir de novo</button></td></tr>` : "");
+    $("checkBody").querySelectorAll("[data-faruse]").forEach((b) => (b.onclick = () => {
+      const k = +b.dataset.faruse, v = $("checkBody").querySelector(`[data-farin="${k}"]`).value.trim(); if (!v) return;
+      S.fix[far[k].i] = v; run();
+    }));
+    $("checkBody").querySelectorAll("[data-farok]").forEach((b) => (b.onclick = () => { const x0 = far[+b.dataset.farok]; far.filter((x) => x.far.lat === x0.far.lat && x.far.lng === x0.far.lng).forEach((x) => (S.farOk[x.pk] = 1)); run(); }));
     $("checkBody").querySelectorAll("[data-keep]").forEach((b) => (b.onclick = () => { S.keepOrig.add(list[+b.dataset.keep].x.i); run(); }));
     $("checkBody").querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.use]; movePin(f.st, f.r.lat, f.r.lng); }));
     $("checkBody").querySelectorAll("[data-ign]").forEach((b) => (b.onclick = () => { const f = diffs[+b.dataset.ign]; if (S.seeDiff === f) S.seeDiff = null; S.ignore[f.x.pk] = 1; store.set("rota.ignore", S.ignore); S.diffs = diffs.filter((y) => y !== f); renderCheck(); drawMap(true); }));
