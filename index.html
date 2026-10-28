@@ -2132,7 +2132,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     }).join("");
     if (S.endPt && !S.roundTrip) html += row(tg && tg.end ? "sel" : "", "F", end ? hhmm(end) : "", "Destino final", S.endPt.label || "", "", null);
     $("dList").innerHTML = html;
-    $("dList").querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => { DR.view = +b.dataset.i; DR.failing = false; renderDrive(); focusStop(S.order[DR.view]); }));
+    $("dList").querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => { DR.view = +b.dataset.i; DR.failing = false; renderDrive(false); focusStop(S.order[DR.view]); }));
     // no computador a lista rola sozinha até à parada; no telemóvel volta ao topo para ver o cartão
     const sel = $("dList").querySelector(".sel"), lst = $("dList");
     if (fit && lst.scrollHeight > lst.clientHeight + 4) { if (sel) lst.scrollTop = sel.offsetTop - lst.clientHeight / 3; }
@@ -2166,8 +2166,8 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         ${S.blocks[s.blk] ? `<div class="drow"><span class="ic">▦</span><div>${esc(blockLine(S.blocks[s.blk], s.blk))}</div></div>` : ""}
         <div class="drow"><span class="ic">ID</span><div>${s.items.map((y) => esc(y.codigo || y.id)).join("<br>")}<br><span class="hint">Linha ${s.items.map((y) => y.i + 2).join(", ")} da planilha</span></div></div>
         ${s.obs ? `<div class="drow"><span class="ic">ℹ</span><div>${esc(s.obs)}</div></div>` : ""}`;
-      const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(); };
-      $("dNext").onclick = () => { const j = nextAfter(vi); if (j >= 0) { DR.view = j; DR.failing = false; renderDrive(); focusStop(S.order[j]); } };
+      const c = $("dClose"); if (c) c.onclick = () => { DR.view = -1; DR.failing = false; renderDrive(false); };
+      $("dNext").onclick = () => { const j = nextAfter(vi); if (j >= 0) { DR.view = j; DR.failing = false; renderDrive(false); focusStop(S.order[j]); } };
       const go = $("dGo"); if (go) go.onclick = () => { DR.view = vi; if (DR.nav) renderDrive(false); else startNav(); };
       $("dDel").onclick = () => { const b = $("dDel"); if (b.dataset.sure) excludeItems(s.items); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } };
       $("dCard").querySelectorAll("[data-delv]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) excludeItems([s.items[+b.dataset.delv]]); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } }));
@@ -2188,11 +2188,12 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     // barra com a parada seguinte
     const nx = tg && !tg.end ? nextAfter(tg.i) : -1;
     $("dNextBar").innerHTML = nx >= 0 ? `<button id="dNextGo"><b>› ${nx + 1}</b>${esc(stopTitle(S.order[nx]))}</button>` : "";
-    if (nx >= 0) $("dNextGo").onclick = () => { DR.view = nx; DR.failing = false; renderDrive(); focusStop(S.order[nx]); };
+    if (nx >= 0) $("dNextGo").onclick = () => { DR.view = nx; DR.failing = false; renderDrive(false); focusStop(S.order[nx]); };
     drawDrive(tg, fit);
     if (DR.nav) navUpdate();
   }
-  function focusStop(s) { if (DR.map && s) { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat], zoom: Math.max(DR.map.getZoom(), 15) }); } }
+  // tocar numa parada (pino, lista, Próxima) só centra o mapa nela: o zoom fica como está
+  function focusStop(s) { if (DR.map && s) { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat] }); } }
   const curHeading = () => (DR.fast ? DR.gpsHead : DR.nav && DR.routeHead != null ? DR.routeHead : DR.heading ?? null);
   // a seta desliza da posição anterior para a nova durante o tempo entre leituras do GPS (sem saltos)
   function moveMe() {
@@ -2260,7 +2261,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     S.order.forEach((s, i) => {
       const t = stOf(s), isT = tg && tg.i === i;
       const tags = isT ? `<div class="tags"><span class="vdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</span><span class="door">${esc(stopTitle(s))}</span></div>` : "";
-      pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", (isWalk(s) ? "🚶" : "") + String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(); }, s);
+      pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", (isWalk(s) ? "🚶" : "") + String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(false); focusStop(s); }, s);
     });
     if (fit && tg) {
       const b = new maplibregl.LngLatBounds([tg.p.lng, tg.p.lat], [tg.p.lng, tg.p.lat]); if (o) b.extend([o.p.lng, o.p.lat]);
