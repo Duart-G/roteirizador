@@ -88,11 +88,16 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .pin.start { background: var(--ink); color: var(--panel); border-radius: 6px; }
 .pinwrap { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 /* caixa com seta: para baixo = entrega, para cima = recolha */
-.kb { position: absolute; left: -11px; top: -11px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #7b2fbf; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); pointer-events: none; }
+.kb { position: absolute; left: -11px; top: -11px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #1f2a3a; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); pointer-events: none; }
 .kb svg { width: 14px; height: 14px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.kb.up { background: #e67e22; }
+.kb.up { background: #1f9d55; }
 /* pontos PUDO com cor própria (roxo) enquanto pendentes */
-.pin.pudo:not(.done):not(.fail):not(.next):not(.d-done):not(.d-fail):not(.d-target) { background: #7b2fbf; color: #fff; border-color: #fff; }
+.pin.pudo:not(.done):not(.fail):not(.next):not(.d-done):not(.d-fail):not(.d-target) { background: #f07c00; color: #fff; border-color: #fff; }
+/* empresas (horário de funcionamento) em rosa; contorno vermelho se estiver fechado à hora prevista */
+.pin.biz:not(.done):not(.fail):not(.next):not(.d-done):not(.d-fail):not(.d-target) { background: #d63384; color: #fff; border-color: #fff; }
+.pin.shut:not(.done):not(.fail):not(.d-done):not(.d-fail) { box-shadow: 0 0 0 3px #e03131, 0 1px 4px rgba(0,0,0,.35); }
+.hrs { background: #fff4e6; color: #7a3d00; border-radius: 4px; padding: 1px 5px; font: 600 11px/1.3 var(--font-body); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.hrs.closed { background: #e03131; color: #fff; }
 .pin.unlocked { animation: pinpulse 1s ease-in-out infinite; outline: 3px dashed #e67e22; outline-offset: 3px; cursor: grab; }
 @keyframes pinpulse { 50% { transform: scale(1.18); } }
 .pinhint { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3000; width: max-content; max-width: calc(100vw - 32px); display: flex; gap: 10px; align-items: center; background: #0d0f12; color: #fff; border-radius: 10px; padding: 10px 14px; font: 600 14px/1.3 var(--font-body); box-shadow: 0 3px 10px rgba(0,0,0,.35); }
@@ -477,7 +482,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
 
   const S = {
     wb: null, headers: [], rows: [], map: {}, stops: [], start: null, fileName: "", openDrive: false, autoRun: false, excl: store.get("rota.excl", {}), excluded: [],
-    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), kindOv: store.get("rota.kind", {}), unlock: null, mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), far: [], farOk: {}, dc: [], dcOk: {}, geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
+    order: [], legs: [], blocks: [], fix: {}, fixed: [], diffs: [], keepOrig: new Set(), pins: store.get("rota.pins", {}), kindOv: store.get("rota.kind", {}), unlock: null, poi: [], bizOv: store.get("rota.biz", {}), etaOf: null, mem: store.get("rota.mem", {}), ignore: store.get("rota.ignore", {}), geofix: store.get("rota.geofix", {}), far: [], farOk: {}, dc: [], dcOk: {}, geofixOff: store.get("rota.geofixoff", {}), done: store.get("rota.done", {}), example: true, routeKey: "",
   };
 
   // estado do modo entrega (ver mais abaixo)
@@ -1080,7 +1085,8 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       S.nWalk = S.order.filter(isWalk).length;
       prog(1);
       log(`${S.example ? "Exemplo (não é a sua planilha): " : ""}Rota pronta: ${S.order.length} paradas (${nVol} volumes)${S.excluded.length ? `, ${S.excluded.length} pacote(s) excluído(s)` : ""}${doneG.length ? `, ${doneG.length} já marcada(s) mantidas no início` : ""}, em ${S.blocks.length} bloco(s)${S.nWalk ? `, ${S.nWalk} parada(s) a pé a partir do carro estacionado` : ""}${bad.length ? `, ${bad.length} sem localização (veja abaixo)` : ""}${S.dc.length ? `, ${S.dc.length} volume(s) para levar ao armazém (fora da rota)` : ""}${S.far.length ? `, ${S.far.length} pacote(s) postos de lado por estarem longe das outras entregas (veja "Moradas conferidas")` : ""}. ${S.source === "osrm" ? "Tempos calculados pelas ruas (OSRM)." : "Tempos estimados pela distância em linha reta."}${S.fixNotes.length ? " " + S.fixNotes.join(" ") : ""}`);
-      renderResult(); drawMap(); loadStopNumbers(); verifyAddresses();
+      S.order.forEach((s) => (s.poi = null)); if (S.poi.length) assignPois();
+      renderResult(); drawMap(); loadStopNumbers(); verifyAddresses(); loadPois();
       if (wantDrive) openDrive();
     } finally { btn.disabled = false; }
   }
@@ -1475,6 +1481,135 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     store.set("rota.kind", S.kindOv);
     renderResult(); redrawPins();
   }
+
+  // ---------- horário de funcionamento (OpenStreetMap opening_hours ou escrito à mão) ----------
+  // PUDO: laranja. Empresa (loja, pavilhão, zona industrial… ou casa do mapa com nome e o mesmo nº de porta): rosa.
+  const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], DAYPT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const BIZ_RE = /\blda\b|\blimitada\b|unipessoal|\bs\.?\s?a\.?$|\bloja\b|pavilh|zona industrial|parque industrial|\barmaz[eé]m|oficina|escrit[oó]rio|restaurante|\bcaf[eé]\b|pastelaria|farm[aá]cia|cl[ií]nica|centro com|shopping|supermercado|minimercado|intermarch|continente|\bstand\b|f[aá]brica/i;
+  // aceita o formato do OSM ("Mo-Fr 09:00-19:00; Sa 09:00-13:00") e o português ("seg-sex 9h-19h; sáb 9-13")
+  function ohNorm(txt) {
+    let t = String(txt || "").trim();
+    const pt = { seg: "Mo", segunda: "Mo", ter: "Tu", terca: "Tu", "terça": "Tu", qua: "We", quarta: "We", qui: "Th", quinta: "Th", sex: "Fr", sexta: "Fr", sab: "Sa", "sáb": "Sa", sabado: "Sa", "sábado": "Sa", dom: "Su", domingo: "Su" };
+    t = t.replace(/[a-zçáé]+(?:-feira)?/gi, (w) => pt[w.toLowerCase().replace(/-feira$/, "")] || w);
+    t = t.replace(/\s+(?:a|até|às|as)\s+/gi, "-").replace(/(\d{1,2})h(\d{2})?/gi, (_, h, m) => h + ":" + (m || "00"));
+    t = t.replace(/(^|[\s,;-])(\d{1,2})(?=\s*[-–]\s*\d)/g, (_, a, h) => a + h + ":00").replace(/([-–]\s*)(\d{1,2})(?![\d:])/g, (_, a, h) => a + h + ":00");
+    t = t.replace(/–/g, "-").replace(/\b(\d):/g, "0$1:");
+    return t;
+  }
+  // devolve, para cada dia (0 = segunda), a lista de intervalos em minutos; null se não perceber
+  function ohParse(txt) {
+    const t = ohNorm(txt); if (!t) return null;
+    if (/^24\/7$/.test(t)) return DAYS.map(() => [[0, 1440]]);
+    const week = DAYS.map(() => null); let ok = false;
+    for (let rule of t.split(/\s*;\s*|\s*\|\|\s*/)) {
+      rule = rule.trim(); if (!rule || /^PH\b/.test(rule)) continue;
+      const m = rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+)?(?:\s*,?\s*PH\s*(?:off)?)?\s*(.*)$/);
+      if (!m) continue;
+      let days = [];
+      if (m[1]) for (const part of m[1].split(/\s*,\s*/).filter(Boolean)) {
+        const [a, b] = part.trim().split("-"), ia = DAYS.indexOf(a), ib = b ? DAYS.indexOf(b) : ia;
+        if (ia < 0 || ib < 0) continue;
+        for (let k = ia; ; k = (k + 1) % 7) { days.push(k); if (k === ib) break; }
+      } else days = [0, 1, 2, 3, 4, 5, 6];
+      const rest = m[2].trim();
+      if (/^(off|closed|fechado)$/i.test(rest)) { days.forEach((d) => (week[d] = [])); ok = true; continue; }
+      const iv = [...rest.matchAll(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g)].map((x) => [+x[1] * 60 + +x[2], +x[3] * 60 + +x[4]]);
+      if (!iv.length) continue;
+      days.forEach((d) => (week[d] = iv)); ok = true;
+    }
+    return ok ? week.map((x) => x || []) : null;
+  }
+  const fmtMinH = (v) => String(Math.floor(v / 60) % 24).padStart(2, "0") + ":" + String(v % 60).padStart(2, "0");
+  const dayIdx = (d) => (d.getDay() + 6) % 7;
+  function dayText(week, d) { const iv = week[d]; if (iv.length === 1 && iv[0][0] === 0 && iv[0][1] >= 1440) return "24 horas";
+    return iv.length ? iv.map((x) => fmtMinH(x[0]) + "–" + fmtMinH(x[1])).join(", ") : "fechado"; }
+  // aberto à hora t? e quando abre a seguir
+  function ohAt(week, t) {
+    const d = new Date(t), di = dayIdx(d), m = d.getHours() * 60 + d.getMinutes();
+    const open = week[di].some(([a, b]) => (b > a ? m >= a && m < b : m >= a || m < b));
+    let next = null;
+    if (!open) {
+      const later = week[di].find(([a]) => a > m);
+      if (later) next = "abre às " + fmtMinH(later[0]);
+      else for (let k = 1; k <= 7; k++) { const iv = week[(di + k) % 7]; if (iv.length) { next = `abre ${k === 1 ? "amanhã" : DAYPT[(di + k) % 7].toLowerCase()} às ${fmtMinH(iv[0][0])}`; break; } }
+    }
+    return { open, next };
+  }
+  // informação de empresa/PUDO de uma parada: { kind: "pudo"|"emp", name, oh, week }
+  function bizOf(s) {
+    if (!s || !s.items) return null;
+    const ov = S.bizOv[memKey(s.items[0])] || {};
+    if (ov.on === false) return null;
+    const pudo = isPudo(s) || hasBadge(s);
+    const kw = !pudo && s.items.some((x) => BIZ_RE.test(x.end + " " + (x.nome || "")));
+    const p = s.poi;
+    const emp = !pudo && (ov.on || kw || (p && p.sameDoor));
+    if (!pudo && !emp) return null;
+    const oh = ov.oh || (p && p.oh) || "";
+    return { kind: pudo ? "pudo" : "emp", name: (p && p.name) || "", oh, week: ohParse(oh), manual: !!ov.oh };
+  }
+  function pinCls(s) { const h = hoursInfo(s); return h ? (h.b.kind === "pudo" ? " pudo" : " biz") + (h.closed ? " shut" : "") : ""; }
+  const stopEta = (s) => (S.etaOf && S.etaOf.get(s)) || null;
+  // texto curto do horário (hoje) e aviso se estiver fechado à hora prevista
+  function hoursInfo(s) {
+    const b = bizOf(s); if (!b) return null;
+    if (!b.week) return { b, short: b.oh ? "horário: " + b.oh : "sem horário", closed: false };
+    const t = stopEta(s) || Date.now(), at = ohAt(b.week, t), d = dayIdx(new Date(t));
+    return { b, short: "hoje " + dayText(b.week, d), closed: !at.open, warn: at.open ? "" : `Fechado às ${hhmm(t)}${at.next ? " (" + at.next + ")" : ""}` };
+  }
+  function hoursTag(s) {
+    const h = hoursInfo(s); if (!h) return "";
+    return `<span class="hrs${h.closed ? " closed" : ""}">🕘 ${esc(h.closed ? h.warn : h.short)}</span>`;
+  }
+  function hoursBlock(s) {
+    const h = hoursInfo(s); if (!h) return "";
+    const b = h.b, title = b.kind === "pudo" ? "Ponto PUDO" : "Empresa";
+    const week = b.week ? DAYS.map((_, i) => `${DAYPT[i]} ${dayText(b.week, i)}`).join(" · ") : "";
+    return `<b>${title}${b.name ? ": " + esc(b.name) : ""}</b><br>${h.closed ? `<span class="hint fail">⚠ ${esc(h.warn)}</span><br>` : ""}${week ? `<span class="hint">${esc(week)}</span>` : `<span class="hint">${b.oh ? esc(b.oh) : "Horário não encontrado no mapa: toque em “Horário” para o escrever."}</span>`}${b.manual ? ' <span class="hint">(escrito por si)</span>' : b.oh ? ' <span class="hint">(OpenStreetMap)</span>' : ""}`;
+  }
+  // botão "Horário": escrever/alterar o horário ou dizer que não é empresa (fica guardado para esta morada)
+  function askHours(s) {
+    const k = memKey(s.items[0]), ov = S.bizOv[k] || {}, b = bizOf(s);
+    const v = prompt("Horário de funcionamento desta morada.\nEx.: seg-sex 9h-19h; sáb 9h-13h; dom fechado\n(deixe vazio para usar o do mapa; escreva \"não\" se não for empresa)", ov.oh || (b && b.oh) || "");
+    if (v == null) return;
+    if (/^\s*n[aã]o\s*$/i.test(v)) S.bizOv[k] = { on: false };
+    else if (v.trim() && !ohParse(v)) { alert("Não percebi esse horário. Exemplo: seg-sex 9h-19h; sáb 9h-13h"); return; }
+    else S.bizOv[k] = { on: true, oh: v.trim() };
+    store.set("rota.biz", S.bizOv);
+    renderResult(); redrawPins();
+  }
+  // lojas, cafés, escritórios… do OpenStreetMap perto de cada parada (grátis, Overpass), guardados 14 dias
+  async function loadPois() {
+    if (!S.order.length) return;
+    const key = hash(S.order.map((s) => s.lat.toFixed(4) + "," + s.lng.toFixed(4)).join(";"));
+    const cache = store.get("rota.poi", null);
+    let list = cache && cache.key === key && Date.now() - cache.t < 14 * 864e5 ? cache.list : null;
+    if (!list) {
+      list = [];
+      try {
+        for (let i = 0; i < S.order.length; i += 30) {
+          const parts = S.order.slice(i, i + 30).map((x) => `nwr(around:80,${x.lat.toFixed(6)},${x.lng.toFixed(6)})["name"][~"^(shop|amenity|office|craft|healthcare|tourism)$"~"."];`).join("");
+          const j = await overpassJSON(`[out:json][timeout:25];(${parts});out center tags;`);
+          j.elements.forEach((el) => { const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon; if (lat != null) list.push({ lat, lng, name: el.tags.name, oh: el.tags.opening_hours || "", hn: el.tags["addr:housenumber"] || "", rua: el.tags["addr:street"] || "" }); });
+        }
+        store.set("rota.poi", { key, t: Date.now(), list });
+      } catch (e) { return; }
+    }
+    S.poi = list; assignPois(); renderResult(); redrawPins();
+  }
+  function assignPois() {
+    for (const s of S.order) {
+      const x = s.items[0], door = norm(doorNumber(x.end)).replace(/^lote/, ""), rua = norm(streetOf(x.end));
+      const near = S.poi.map((p) => ({ p, d: hav(s, p) * 1000 })).filter((o) => o.d <= 80).sort((a, b) => a.d - b.d);
+      const same = door && near.find((o) => o.d <= 60 && norm(o.p.hn) === door && (!o.p.rua || !rua || norm(o.p.rua).includes(rua.split(" ").pop()) || rua.includes(norm(o.p.rua).split(" ").pop())));
+      // PUDO / lojas: o nome do mapa que aparece na morada (ex.: Continente) ou a casa mais perto com horário
+      const words = norm(x.end).split(/\s+/).filter((w) => w.length > 4);
+      const named = near.find((o) => words.some((w) => norm(o.p.name).includes(w)));
+      const withOh = near.find((o) => o.p.oh && o.d <= 50);
+      const pick = same || named || withOh;
+      s.poi = pick ? { name: pick.p.name, oh: pick.p.oh, sameDoor: !!same } : null;
+    }
+  }
   $("errReport").onclick = async () => {
     if (typeof XLSX === "undefined") return;
     const rows = errorRows();
@@ -1580,7 +1715,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       return (bk && bk.a === i ? `<tr class="blkrow"><td colspan="5" style="border-left:6px solid ${bk.col}"><b>${esc(blockLine(bk, s.blk))}</b>${bk.loose ? ' <span class="hint">(paradas soltas pelo caminho)</span>' : ""}</td></tr>` : "") + `<tr class=""${stt ? (stt.st === "ok" ? "done" : "fail") : ""}${i === nextIdx ? " next" : ""}">
         <td class="ord">${i + 1}</td>
         <td>${s.items.map((x) => `<span class="cx" title="${esc(x.codigo)}">${esc(x.id)}</span>`).join(" ")}${s.items.length > 1 ? `<br><span class="hint">${s.items.length} volumes</span>` : ""}</td>
-        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.geoFix) ? ' <span class="doorok">(pino acertado pela porta no mapa)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${hasBadge(s) ? ` <span class="hint fail">(${isPudo(s) ? "ponto PUDO: " : ""}${isPickup(s) ? "recolher ↑" : "deixar ↓"})</span>` : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
+        <td class="addr">${s.nome ? "<b>" + esc(s.nome) + "</b><br>" : ""}${esc(s.addr)}${s.approx ? ' <span class="hint fail">(local aproximado pelo CEP)</span>' : ""}${s.items.some((x) => x.fixed) ? ' <span class="hint fail">(posição corrigida pelo código postal)</span>' : ""}${s.items.some((x) => x.geoFix) ? ' <span class="doorok">(pino acertado pela porta no mapa)</span>' : ""}${s.items.some((x) => x.fromMem) ? ` <span class="doorok">(posição memorizada: ${esc(s.items.find((x) => x.fromMem).fromMem.fonte)} em ${new Date(s.items.find((x) => x.fromMem).fromMem.t).toLocaleDateString("pt-PT")})</span>` : ""}${hoursInfo(s) ? " " + hoursTag(s) : ""}${hasBadge(s) ? ` <span class="hint fail">(${isPudo(s) ? "ponto PUDO: " : ""}${isPickup(s) ? "recolher ↑" : "deixar ↓"})</span>` : ""}${s.obs ? '<br><span class="hint">' + esc(s.obs) + "</span>" : ""}${doorText(s) ? "<br>" + doorText(s) : ""}${s.walk ? `<br><span class="walkinfo">${esc(walkText(s))}</span>` : ""}${stt ? "<br>" + statusBadge(s) : ""}</td>
         <td class="num">${i === 0 && S.start.firstIsStart ? "início" : "+" + fmtMin(leg.dur) + "<br>" + (leg.walk ? "🚶 " + Math.round(leg.walk) + " m" : fmtKm(leg.dist) + " km")}</td>
         <td><div class="actions">
           <a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a>
@@ -1815,7 +1950,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       // número VDC = etiqueta do pacote (coluna Label); caixa azul para não confundir com o número da casa
       const vdc = x.s ? `<span class="vdc">VDC ${esc(x.s.items.map((y) => y.id).join(", "))}</span>` : "";
       const un = isUnlocked(x.s), at = un ? S.unlock : x.p;
-      const icon = L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${x.kind}${hasBadge(x.s) ? " pudo" : ""}${un ? " unlocked" : x.s && x.s.items.some((y) => y.moved) ? " moved" : x.s && x.s.items.some((y) => y.fromMem) ? " mem" : ""}">${x.label}</div>${kindBadge(x.s)}<div class="tags">${vdc}${door}</div></div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+      const icon = L.divIcon({ className: "", html: `<div class="pinwrap"><div class="pin ${x.kind}${pinCls(x.s)}${un ? " unlocked" : x.s && x.s.items.some((y) => y.moved) ? " moved" : x.s && x.s.items.some((y) => y.fromMem) ? " mem" : ""}">${x.label}</div>${kindBadge(x.s)}<div class="tags">${vdc}${door}${x.s ? hoursTag(x.s) : ""}</div></div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
       const m = L.marker([at.lat, at.lng], { icon, zIndexOffset: un ? 2000 : x.kind === "next" ? 1000 : 0, draggable: un }).addTo(layer);
       if (x.s) onHold(m.getElement(), () => { lmap.closePopup(); unlockPin(x.s); });
       if (un) {
@@ -1824,9 +1959,9 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         m.on("click", () => { if (!tapIgnored()) lockPin(); });
         return;
       }
-      if (x.s) m.on("popupopen", (e) => { const b = e.popup.getElement().querySelector("[data-kind]"); if (b) b.onclick = () => { lmap.closePopup(); toggleKind(x.s); }; });
+      if (x.s) m.on("popupopen", (e) => { const b = e.popup.getElement().querySelector("[data-kind]"); if (b) b.onclick = () => { lmap.closePopup(); toggleKind(x.s); }; const h = e.popup.getElement().querySelector("[data-hrs]"); if (h) h.onclick = () => { lmap.closePopup(); askHours(x.s); }; });
       m.on("click", () => { if (tapIgnored()) m.closePopup(); });
-      m.bindPopup(x.s ? `<b>${esc(x.label)}. ${esc(x.s.items.map((y) => y.id).join(", "))}</b><br>${esc(x.s.nome)}<br>${esc(x.s.addr)}${doorText(x.s) ? "<br>" + doorText(x.s) : ""}${stOf(x.s) ? "<br>" + statusBadge(x.s) : ""}<br><a target="_blank" rel="noopener" href="${wazeUrl(x.s)}">Waze</a> · <a target="_blank" rel="noopener" href="${gmapsOne(x.s)}">Google Maps</a> · <a target="_blank" rel="noopener" href="${streetView(x.s)}">Street View</a><br><button class="btn small" data-kind>${isPickup(x.s) ? "Marcar como deixar ↓" : "Marcar como recolher ↑"}</button><br><span class="hint">Para corrigir o pino: segure-o, arraste e toque nele para fixar.</span>` : (x.label === "F" ? "<b>Ponto final</b><br>" + esc(S.endPt.label) : "<b>Ponto de partida</b><br>" + esc(S.start.label)));
+      m.bindPopup(x.s ? `<b>${esc(x.label)}. ${esc(x.s.items.map((y) => y.id).join(", "))}</b><br>${esc(x.s.nome)}<br>${esc(x.s.addr)}${doorText(x.s) ? "<br>" + doorText(x.s) : ""}${stOf(x.s) ? "<br>" + statusBadge(x.s) : ""}<br><a target="_blank" rel="noopener" href="${wazeUrl(x.s)}">Waze</a> · <a target="_blank" rel="noopener" href="${gmapsOne(x.s)}">Google Maps</a> · <a target="_blank" rel="noopener" href="${streetView(x.s)}">Street View</a>${hoursInfo(x.s) ? "<br>" + hoursBlock(x.s) : ""}<br><button class="btn small" data-hrs>🕘 Horário</button> <button class="btn small" data-kind>${isPickup(x.s) ? "Marcar como deixar ↓" : "Marcar como recolher ↑"}</button><br><span class="hint">Para corrigir o pino: segure-o, arraste e toque nele para fixar.</span>` : (x.label === "F" ? "<b>Ponto final</b><br>" + esc(S.endPt.label) : "<b>Ponto de partida</b><br>" + esc(S.start.label)));
     });
     if (!keepView) lmap.fitBounds(L.latLngBounds(line), { padding: [30, 30] });
   }
@@ -2069,9 +2204,11 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         const empty = lineFeat([]), round = { "line-join": "round", "line-cap": "round" };
         DR.map.addSource("full", { type: "geojson", data: empty }); DR.map.addSource("leg", { type: "geojson", data: empty });
         const w = (a, b, c) => ["interpolate", ["linear"], ["zoom"], 10, a, 15, b, 19, c];
-        DR.map.addLayer({ id: "full", type: "line", source: "full", layout: round, paint: { "line-color": "#6f9be0", "line-width": w(3, 6, 12), "line-opacity": 0.55 } });
-        DR.map.addLayer({ id: "legcase", type: "line", source: "leg", layout: round, paint: { "line-color": "#0b6f93", "line-width": w(8, 17, 34) } });
-        DR.map.addLayer({ id: "leg", type: "line", source: "leg", layout: round, paint: { "line-color": "#33ccff", "line-width": w(5, 12, 26) } });
+        // o trajeto fica por baixo dos nomes das ruas e dos números das casas, e um pouco transparente
+        const below = DR.map.getLayer("housenumber") ? "housenumber" : DR.map.getLayer("place") ? "place" : undefined;
+        DR.map.addLayer({ id: "full", type: "line", source: "full", layout: round, paint: { "line-color": "#6f9be0", "line-width": w(3, 6, 12), "line-opacity": 0.5 } }, below);
+        DR.map.addLayer({ id: "legcase", type: "line", source: "leg", layout: round, paint: { "line-color": "#0b6f93", "line-width": w(6, 13, 26), "line-opacity": 0.75 } }, below);
+        DR.map.addLayer({ id: "leg", type: "line", source: "leg", layout: round, paint: { "line-color": "#33ccff", "line-width": w(4, 9, 19), "line-opacity": 0.8 } }, below);
         DR.ready = true; renderDrive(true); drawRadars();
       });
       DR.map.on("dragstart", () => { DR.follow = false; });
@@ -2115,6 +2252,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     if (DR.nav) fit = false;
     if (fit) DR.follow = false;
     const { eta, end } = driveEtas();
+    S.etaOf = new Map(S.order.map((s, i) => [s, eta[i]]));
     const okN = S.order.filter((s) => stOf(s)?.st === "ok").length, failN = S.order.filter((s) => stOf(s)?.st === "fail").length, N = S.order.length;
     $("dMeta").textContent = `${end ? "Término: " + hhmm(end) + " · " : ""}${N} paradas · ${fmtKm(S.totDist)} km · ${okN} entregue(s)${failN ? ", " + failN + " não" : ""}`;
     $("dName").textContent = S.example ? "Exemplo (não é a sua planilha)" : (S.fileName || "Rota").replace(/\.(xlsx|xls|csv)$/i, "");
@@ -2128,7 +2266,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     html += S.order.map((s, i) => {
       const t = stOf(s), cep = s.cep ? fmtCep(s.cep) : "", bk = S.blocks[s.blk];
       const head = bk && bk.a === i ? `<div class="dblk" style="border-left-color:${bk.col}">${esc(blockLine(bk, s.blk))}</div>` : "";
-      return head + row(t ? t.st : "", String(i + 1).padStart(2, "0"), t ? (t.st === "ok" ? "✓ " : "✗ ") + hhmm(t.t) : eta[i] ? hhmm(eta[i]) : "", (isWalk(s) ? "🚶 " : s.walk ? "🅿 " : "") + stopTitle(s), [cep, s.nome, s.items.length > 1 ? s.items.length + " volumes" : ""].filter(Boolean).join(" · "), "VDC " + s.items.map((x) => x.id).join(", "), i);
+      return head + row(t ? t.st : "", String(i + 1).padStart(2, "0"), t ? (t.st === "ok" ? "✓ " : "✗ ") + hhmm(t.t) : eta[i] ? hhmm(eta[i]) : "", (isWalk(s) ? "🚶 " : s.walk ? "🅿 " : "") + stopTitle(s), [cep, s.nome, s.items.length > 1 ? s.items.length + " volumes" : "", !t && hoursInfo(s) ? "🕘 " + (hoursInfo(s).closed ? hoursInfo(s).warn : hoursInfo(s).short) : ""].filter(Boolean).join(" · "), "VDC " + s.items.map((x) => x.id).join(", "), i);
     }).join("");
     if (S.endPt && !S.roundTrip) html += row(tg && tg.end ? "sel" : "", "F", end ? hhmm(end) : "", "Destino final", S.endPt.label || "", "", null);
     $("dList").innerHTML = html;
@@ -2159,10 +2297,11 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
           ${t ? `<button class="dbtn" id="dUndo" style="grid-column:span 2"><i>↺</i>Desfazer</button>` : `<button class="dbtn fail" id="dFail"><i>✗</i>Não entregue</button><button class="dbtn ok" id="dOk"><i>✓</i>Entregue</button>`}
         </div>
         ${DR.failing ? `<div class="dfailform"><select id="dMotivo" aria-label="Motivo">${MOTIVOS.map((m) => `<option>${m}</option>`).join("")}</select><button class="btn small failbtn" id="dFailOk">Confirmar não entregue</button><button class="btn small" id="dFailNo">Cancelar</button></div>` : ""}
-        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dPin">📍 Corrigir pino</button><button class="btn small" id="dKind">${isPickup(s) ? "Marcar como deixar ↓" : "Marcar como recolher ↑"}</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
+        <div class="dlinks"><a class="btn small sign" target="_blank" rel="noopener" href="${wazeUrl(s)}">Waze</a><a class="btn small" target="_blank" rel="noopener" href="${gmapsOne(s)}">Google Maps</a><a class="btn small" target="_blank" rel="noopener" href="${streetView(s)}">Street View</a><button class="btn small" id="dDoor">Ver porta</button><button class="btn small" id="dPin">📍 Corrigir pino</button><button class="btn small" id="dHrs">🕘 Horário</button><button class="btn small" id="dKind">${isPickup(s) ? "Marcar como deixar ↓" : "Marcar como recolher ↑"}</button><button class="btn small" id="dDel">🗑 Excluir ${s.items.length > 1 ? "parada" : "pacote"}</button></div>
         <div class="drow"><span class="ic">📦</span><div><b class="dvdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</b>${s.items.length > 1 ? ` · ${s.items.length} volumes<br>${s.items.map((y, k) => `<button class="btn small" data-delv="${k}">🗑 Excluir só VDC ${esc(y.id)}</button>`).join(" ")}` : ""}${s.nome ? "<br>" + esc(s.nome) : ""}</div></div>
         ${s.walk ? `<div class="drow walkrow"><span class="ic">${isWalk(s) ? "🚶" : "🅿"}</span><div>${esc(walkText(s).replace(/^\S+\s/, ""))}</div></div>` : ""}
         <div class="drow"><span class="ic">📍</span><div>${esc(s.addr)}${doorText(s) ? "<br>" + doorText(s) : ""}</div></div>
+        ${hoursInfo(s) ? `<div class="drow"><span class="ic">🕘</span><div>${hoursBlock(s)}</div></div>` : ""}
         ${S.blocks[s.blk] ? `<div class="drow"><span class="ic">▦</span><div>${esc(blockLine(S.blocks[s.blk], s.blk))}</div></div>` : ""}
         <div class="drow"><span class="ic">ID</span><div>${s.items.map((y) => esc(y.codigo || y.id)).join("<br>")}<br><span class="hint">Linha ${s.items.map((y) => y.i + 2).join(", ")} da planilha</span></div></div>
         ${s.obs ? `<div class="drow"><span class="ic">ℹ</span><div>${esc(s.obs)}</div></div>` : ""}`;
@@ -2173,6 +2312,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
       $("dCard").querySelectorAll("[data-delv]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) excludeItems([s.items[+b.dataset.delv]]); else { b.dataset.sure = 1; b.textContent = "Confirmar exclusão"; b.classList.add("failbtn"); } }));
       $("dPin").onclick = () => askPin(s);
       $("dKind").onclick = () => toggleKind(s);
+      $("dHrs").onclick = () => askHours(s);
       $("dDoor").onclick = () => { DR.follow = false; DR.map.easeTo({ center: [s.lng, s.lat], zoom: 18 }); };
       if (t) $("dUndo").onclick = () => { DR.view = vi; setStatus(s, null); };
       else {
@@ -2246,7 +2386,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     const pin = (p, cls, label, tags, z, onClick, s) => {
       const un = isUnlocked(s), at = un ? S.unlock : p;
       const el = document.createElement("div"); el.style.zIndex = un ? 2300 : 300 + z;
-      el.innerHTML = `<div class="pinwrap"><div class="pin ${cls}${hasBadge(s) ? " pudo" : ""}${un ? " unlocked" : ""}">${label}</div>${kindBadge(s)}${tags || ""}</div>`;
+      el.innerHTML = `<div class="pinwrap"><div class="pin ${cls}${s ? pinCls(s) : ""}${un ? " unlocked" : ""}">${label}</div>${kindBadge(s)}${tags || ""}</div>`;
       const mk = new maplibregl.Marker({ element: el, anchor: "center", draggable: un }).setLngLat([at.lng, at.lat]).addTo(DR.map);
       if (s) onHold(el, () => unlockPin(s));
       if (un) {
@@ -2260,7 +2400,7 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
     if (S.endPt && !S.roundTrip) pin(S.endPt, "d-end", "F", tg && tg.end ? `<div class="tags"><span class="door">Destino final</span></div>` : "", tg && tg.end ? 1000 : -200);
     S.order.forEach((s, i) => {
       const t = stOf(s), isT = tg && tg.i === i;
-      const tags = isT ? `<div class="tags"><span class="vdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</span><span class="door">${esc(stopTitle(s))}</span></div>` : "";
+      const tags = isT ? `<div class="tags"><span class="vdc">VDC ${esc(s.items.map((y) => y.id).join(", "))}</span><span class="door">${esc(stopTitle(s))}</span>${hoursTag(s)}</div>` : !t && hoursInfo(s) ? `<div class="tags">${hoursTag(s)}</div>` : "";
       pin(s, isT ? "d-target" : !t ? "d-stop" : t.st === "ok" ? "d-done" : "d-fail", (isWalk(s) ? "🚶" : "") + String(i + 1), tags, isT ? 1000 : t ? -100 : 0, () => { DR.view = i; DR.failing = false; renderDrive(false); focusStop(s); }, s);
     });
     if (fit && tg) {
@@ -2328,6 +2468,8 @@ tr.blkrow td { background: var(--soft); padding-top: 10px; }
         { id: "building", type: "fill", source: "ofm", "source-layer": "building", minzoom: 15, paint: { "fill-color": "#303949" } },
         { id: "road-case", type: "line", source: "ofm", "source-layer": "transportation", filter: roads, layout: round, paint: { "line-color": "#1a2029", "line-width": roadW(3) } },
         { id: "road", type: "line", source: "ofm", "source-layer": "transportation", filter: roads, layout: round, paint: { "line-color": ["match", cls, big, "#5d7ca6", mid, "#4c678c", "#3e5473"], "line-width": roadW(0) } },
+        // números das casas (OpenStreetMap) a partir do zoom 16
+        { id: "housenumber", type: "symbol", source: "ofm", "source-layer": "housenumber", minzoom: 16, layout: { "text-field": ["get", "housenumber"], "text-font": F, "text-size": ["interpolate", ["linear"], ["zoom"], 16, 11, 19, 15], "text-padding": 2 }, paint: { "text-color": "#ffd166", "text-halo-color": "#1a2029", "text-halo-width": 1.5 } },
         { id: "place", type: "symbol", source: "ofm", "source-layer": "place", filter: ["in", cls, ["literal", ["city", "town", "village", "suburb", "hamlet"]]], layout: { "text-field": ["get", "name"], "text-font": F, "text-size": ["match", cls, "city", 22, "town", 19, 16] }, paint: { "text-color": "#aab6c8", "text-halo-color": "#1a2029", "text-halo-width": 2 } },
         { id: "road-name", type: "symbol", source: "ofm", "source-layer": "transportation_name", minzoom: 13, layout: { "symbol-placement": "line", "text-field": ["get", "name"], "text-font": F, "text-size": ["interpolate", ["linear"], ["zoom"], 13, 14, 16, 18, 19, 24], "text-max-angle": 35, "text-padding": 6 }, paint: { "text-color": "#eef2f8", "text-halo-color": "#1a2029", "text-halo-width": 2.5 } },
       ],
